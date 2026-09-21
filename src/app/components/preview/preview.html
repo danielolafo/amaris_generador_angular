@@ -23,7 +23,7 @@
     </div>
   </div>
   <div class="prev-frame" [class.mobile]="device() === 'mobile'">
-    <iframe [srcdoc]="html()" title="Vista previa de la página generada"></iframe>
+    <iframe #frame title="Vista previa de la página generada"></iframe>
   </div>
   <p class="prev-note">
     La vista previa ejecuta las llamadas reales a las URLs configuradas. Si el servidor lo permite
