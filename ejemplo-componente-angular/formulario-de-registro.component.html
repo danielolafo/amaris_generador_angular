@@ -1,0 +1,69 @@
+<div class="pb-page">
+  <header class="pb-header">
+    <div class="pb-wrap">
+      <h1 class="pb-title">Formulario de registro</h1>
+      <p class="pb-subtitle">1 sección(es) · 5 campo(s)</p>
+    </div>
+  </header>
+  <main class="pb-wrap">
+    <form #form="ngForm" (ngSubmit)="enviar(form)" novalidate>
+    <section class="pb-card">
+      <h2 class="pb-section-title">Datos personales</h2>
+      <p class="pb-section-desc"></p>
+      <div class="pb-grid" style="--pb-cols:2">
+      <div class="pb-field">
+        <label class="pb-label" for="f_nombre">Nombre <span class="pb-req">*</span></label>
+        <input class="pb-input" id="f_nombre" name="nombre" type="text" [(ngModel)]="model['nombre']" placeholder="Escriba su nombre" required (input)="limpiarErrorCS('nombre')">
+        
+      <span class="pb-error" [class.show]="errores['nombre']">{{ errores['nombre'] }}</span>
+      </div>
+      <div class="pb-field">
+        <label class="pb-label" for="f_ciudad">Ciudad <span class="pb-req">*</span></label>
+        <select class="pb-select" id="f_ciudad" name="ciudad" [(ngModel)]="model['ciudad']" required (change)="limpiarErrorCS('ciudad')">
+          <option value="">Seleccione una ciudad</option>
+          <option *ngFor="let o of opciones['ciudad']" [value]="o.value">{{ o.label }}</option>
+        </select>
+      <span class="pb-error" [class.show]="errores['ciudad']">{{ errores['ciudad'] }}</span>
+      </div>
+      <div class="pb-field">
+        <label class="pb-label" for="f_correo">Correo electrónico <span class="pb-req">*</span></label>
+        <input class="pb-input" id="f_correo" name="correo" type="email" [(ngModel)]="model['correo']" placeholder="usuario@ejemplo.com" required (input)="limpiarErrorCS('correo')">
+        
+      <span class="pb-error" [class.show]="errores['correo']">{{ errores['correo'] }}</span>
+      </div>
+      <div class="pb-field">
+        <label class="pb-label" for="f_observaciones">Observaciones</label>
+        <textarea class="pb-textarea" id="f_observaciones" name="observaciones" [(ngModel)]="model['observaciones']" rows="4" placeholder="Escriba comentarios" (input)="limpiarErrorCS('observaciones')" (change)="limpiarErrorCS('observaciones')"></textarea>
+      <span class="pb-error" [class.show]="errores['observaciones']">{{ errores['observaciones'] }}</span>
+      </div>
+      <div class="pb-field">
+        <span class="pb-label">Estado</span>
+        <fieldset class="pb-radio-group" id="f_estado">
+          <label class="pb-check" *ngFor="let o of opciones['estado']">
+            <input type="radio" name="estado" [value]="o.value" [(ngModel)]="model['estado']" (change)="limpiarErrorCS('estado')">
+            <span>{{ o.label }}</span>
+          </label>
+        </fieldset>
+      <span class="pb-error" [class.show]="errores['estado']">{{ errores['estado'] }}</span>
+      </div>
+      </div>
+    </section>
+      <div class="pb-status" [class.success]="tipoMensaje === 'success'" [class.error]="tipoMensaje === 'error'" [class.info]="tipoMensaje === 'info'" [style.display]="statusVisible ? 'block' : 'none'">{{ mensaje }}</div>
+      <div class="pb-actions">
+        <button type="submit" class="pb-btn pb-btn-primary">Enviar</button>
+        <button type="button" class="pb-btn pb-btn-secondary" (click)="limpiar()">Limpiar</button>
+      </div>
+    </form>
+  </main>
+  <footer class="pb-footer">
+    <div class="pb-wrap">Generado con PageBuilder</div>
+  </footer>
+<div class="pb-modal" [class.show]="modalVisible" (mousedown)="cerrarModal($event)">
+    <div class="pb-modal-box" [class.pb-modal-success]="modalTipo === 'success'" [class.pb-modal-error]="modalTipo === 'error'" [class.pb-modal-warning]="modalTipo === 'warning'">
+      <div class="pb-modal-icon">{{ modalIcono }}</div>
+      <h3>{{ modalTitulo }}</h3>
+      <p>{{ modalMsg }}</p>
+      <button type="button" class="pb-btn pb-btn-primary" (click)="cerrarModal()">Aceptar</button>
+    </div>
+  </div>
+</div>

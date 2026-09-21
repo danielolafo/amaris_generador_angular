@@ -1,0 +1,79 @@
+<header class="top">
+  <div class="top-bar">
+    <div class="brand">
+      <span class="brand-logo">▦</span>
+      <div class="brand-text">
+        <strong>PageBuilder</strong>
+        <span class="brand-sub">Asistente visual de páginas Angular</span>
+      </div>
+    </div>
+
+    <nav class="tabs">
+      <button
+        type="button"
+        class="tab"
+        [class.active]="tab() === 'builder'"
+        (click)="switchTab('builder')">
+        Configurador
+      </button>
+      <button
+        type="button"
+        class="tab"
+        [class.active]="tab() === 'preview'"
+        (click)="switchTab('preview')">
+        Vista previa
+      </button>
+      <button
+        type="button"
+        class="tab"
+        [class.active]="tab() === 'code'"
+        (click)="switchTab('code')">
+        Código generado
+      </button>
+    </nav>
+
+    <div class="actions">
+      <label class="action" for="importFile" title="Importar configuración JSON">
+        📥 Importar
+      </label>
+      <input
+        id="importFile"
+        class="import-input"
+        type="file"
+        accept=".json,application/json"
+        (change)="onImportFile($event)" />
+      <button type="button" class="action" (click)="exportJson()" title="Exportar configuración JSON">
+        📤 Exportar
+      </button>
+      <button type="button" class="action" (click)="copyComponent()" title="Copiar el componente Angular generado (.ts)">
+        {{ copied() ? '✓ Copiado' : '⧉ Copiar componente' }}
+      </button>
+      <button type="button" class="action action-primary" (click)="downloadComponent()" title="Descargar componente Angular (archivo único .ts)">
+        ⬇ Componente Angular
+      </button>
+      <button type="button" class="action" (click)="downloadHtml()" title="Descargar versión clásica: HTML autocontenido">
+        🌐 HTML simple
+      </button>
+      <button type="button" class="action action-danger" (click)="resetAll()" title="Reiniciar configuración">
+        ⟲
+      </button>
+    </div>
+  </div>
+  <div class="top-strip">
+    <span id="importedBar" [class.show]="imported()">Configuración importada correctamente.</span>
+  </div>
+</header>
+
+<main class="stage">
+  @switch (tab()) {
+    @case ('builder') {
+      <app-builder />
+    }
+    @case ('preview') {
+      <app-preview />
+    }
+    @case ('code') {
+      <app-codeview />
+    }
+  }
+</main>

@@ -1,0 +1,142 @@
+﻿<div class="fe" [class.open]="open()" [formGroup]="f()">
+  <div class="fe-head">
+    <button type="button" class="fe-grip" (click)="moveUp.emit()" title="Subir">↑</button>
+    <button type="button" class="fe-grip" (click)="moveDown.emit()" title="Bajar">↓</button>
+    <strong class="fe-symbol">{{ typeSymbol() }}</strong>
+    <input class="fe-label-input" formControlName="label" placeholder="Etiqueta del campo" />
+    <span class="fe-type">{{ ctrl('type').value }}</span>
+    <label class="fe-chip fe-req" title="Campo obligatorio">
+      <input type="checkbox" formControlName="required" />
+      <span>Requerido</span>
+    </label>
+    <button type="button" class="fe-action" (click)="duplicate.emit()" title="Duplicar">⧉</button>
+    <button type="button" class="fe-action" (click)="open.set(!open())" [attr.title]="open() ? 'Contraer' : 'Expandir'">
+      {{ open() ? '▴' : '▾' }}
+    </button>
+    <button type="button" class="fe-action fe-del" (click)="delete.emit()" title="Eliminar campo">✕</button>
+  </div>
+
+  @if (open()) {
+    <div class="fe-body">
+      <div class="fe-grid">
+        <div class="fe-cell">
+          <label class="fe-label">ID / nombre del campo</label>
+          <input class="fe-input" formControlName="id" placeholder="nombre_campo" />
+        </div>
+        <div class="fe-cell">
+          <label class="fe-label">Tipo de elemento</label>
+          <select class="fe-input" formControlName="type">
+            @for (t of fieldTypes; track t.value) {
+              <option [value]="t.value">{{ t.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="fe-cell">
+          <label class="fe-label">Placeholder</label>
+          <input class="fe-input" formControlName="placeholder" placeholder="Ayuda visual…" />
+        </div>
+        <div class="fe-cell">
+          <label class="fe-label">Valor por defecto</label>
+          <input class="fe-input" formControlName="defaultValue" placeholder="Valor inicial" />
+        </div>
+      </div>
+
+      <div class="fe-row">
+        <label class="fe-chip">
+          <input type="checkbox" formControlName="readonly" />
+          <span>Solo lectura</span>
+        </label>
+        <div class="fe-cell fe-grow">
+          <label class="fe-label">Texto de ayuda</label>
+          <input class="fe-input" formControlName="helpText" placeholder="Pista o explicación bajo el campo" />
+        </div>
+      </div>
+
+      <div class="fe-grid">
+        <div class="fe-cell">
+          <label class="fe-label">Campo en el JSON de carga</label>
+          <input class="fe-input" formControlName="loadField" placeholder="clave del JSON de respuesta" />
+          <p class="fe-help">La página lee este valor al cargar datos (respuesta del servicio de carga).</p>
+        </div>
+        <div class="fe-cell">
+          <label class="fe-label">Campo en el JSON de envío</label>
+          <input class="fe-input" formControlName="submitField" placeholder="clave del JSON a enviar" />
+          <p class="fe-help">Con esta clave se envía el valor (plantilla <code>{{'{{'}}clave{{'}}'}}</code> o body).</p>
+        </div>
+      </div>
+
+      @if (ctrl('required').value) {
+        <div class="fe-cell">
+          <label class="fe-label">Mensaje de error si el campo está vacío</label>
+          <input class="fe-input" formControlName="requiredMessage" placeholder="Este campo es obligatorio." />
+        </div>
+      }
+
+      @if (ctrl('type').value === 'select' || ctrl('type').value === 'radio') {
+        <div class="fe-options">
+          <div class="fe-options-head">
+            <span class="fe-label">Opciones del {{ ctrl('type').value === 'select' ? 'SelectBox' : 'Radio' }}</span>
+            <label class="fe-chip">
+              <input type="checkbox" formControlName="optionsFromUrl" />
+              <span>Cargar opciones desde URL</span>
+            </label>
+          </div>
+
+          @if (ctrl('optionsFromUrl').value) {
+            <div class="fe-grid">
+              <div class="fe-cell">
+                <label class="fe-label">URL de opciones</label>
+                <input class="fe-input" formControlName="optionsUrl" placeholder="https://api.ejemplo.com/ciudades" />
+              </div>
+              <div class="fe-cell">
+                <label class="fe-label">Clave del valor</label>
+                <input class="fe-input" formControlName="optionsValueField" placeholder="codigo" />
+              </div>
+              <div class="fe-cell">
+                <label class="fe-label">Clave del texto</label>
+                <input class="fe-input" formControlName="optionsLabelField" placeholder="nombre" />
+              </div>
+            </div>
+            <p class="fe-help">
+              La página pedirá esta URL al cargar y llenará las opciones. Responde un arreglo o
+              <code>data</code> / <code>items</code> / <code>results</code>.
+            </p>
+          } @else {
+            <div class="fe-opt-list">
+              @for (opt of optionsArr().controls; track $index; let i = $index) {
+                <div class="fe-opt-row">
+                  <input class="fe-input fe-opt-value" [formControl]="optCtrl(opt, 'value')" placeholder="valor" />
+                  <input class="fe-input fe-opt-label" [formControl]="optCtrl(opt, 'label')" placeholder="texto a mostrar" />
+                  <button type="button" class="fe-action" (click)="moveOption(i, -1)" title="Subir">↑</button>
+                  <button type="button" class="fe-action" (click)="moveOption(i, 1)" title="Bajar">↓</button>
+                  <button type="button" class="fe-action fe-del" (click)="removeOption(i)" title="Quitar">✕</button>
+                </div>
+              } @empty {
+                <span class="fe-help">Sin opciones todavía.</span>
+              }
+              <button type="button" class="fe-add" (click)="addOption()">+ Agregar opción</button>
+            </div>
+          }
+        </div>
+      }
+
+      @if (ctrl('type').value !== 'checkbox' && ctrl('type').value !== 'radio' && ctrl('type').value !== 'select') {
+        <div class="fe-ac">
+          <label class="fe-chip">
+            <input type="checkbox" formControlName="autocomplete" />
+            <span>Autocompletado</span>
+          </label>
+          @if (ctrl('autocomplete').value) {
+            <div class="fe-cell">
+              <label class="fe-label">URL de autocompletado (opcional; si está vacía usa la global)</label>
+              <input class="fe-input" formControlName="autocompleteUrl" placeholder="https://api.ejemplo.com/autocomplete" />
+            </div>
+            <p class="fe-help">
+              Se llamará con <code>?q=texto&amp;field=id</code> y se mostrarán sugerencias.
+            </p>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

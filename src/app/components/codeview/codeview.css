@@ -1,0 +1,134 @@
+.codev {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.codev-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.codev-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.codev-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.prev-btn {
+  border: 1px solid var(--pb-border);
+  border-radius: 7px;
+  background: var(--pb-card);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--pb-text);
+}
+
+.prev-btn-primary {
+  background: var(--pb-primary);
+  color: #fff;
+  border-color: var(--pb-primary);
+}
+
+.prev-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.codev-files {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.file-pill {
+  border: 1px solid var(--pb-border);
+  border-radius: 7px;
+  background: var(--pb-bg-soft);
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--pb-muted);
+}
+
+.file-pill:hover {
+  color: var(--pb-primary);
+  border-color: var(--pb-primary);
+}
+
+.file-pill.active {
+  background: var(--pb-primary);
+  border-color: var(--pb-primary);
+  color: #fff;
+}
+
+.codev-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--pb-border);
+  margin: 0 4px;
+}
+
+.file-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pb-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.file-check input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--pb-primary);
+}
+
+.codev-note code {
+  background: var(--pb-bg-soft);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 11px;
+}
+
+.codev-size {
+  font-size: 11px;
+  color: var(--pb-muted);
+}
+
+.codev-area {
+  width: 100%;
+  flex: 1;
+  min-height: calc(100vh - 220px);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius);
+  background: var(--pb-code-bg);
+  color: var(--pb-code-text);
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 14px;
+  resize: none;
+}
+
+.codev-note {
+  font-size: 11px;
+  color: var(--pb-muted);
+  margin: 0;
+}

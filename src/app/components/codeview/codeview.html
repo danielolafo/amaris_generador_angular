@@ -1,0 +1,67 @@
+<div class="codev">
+  <div class="codev-bar">
+    <div class="codev-files">
+      <button
+        type="button"
+        class="file-pill"
+        [class.active]="!single() && file() === 'ts'"
+        (click)="setFile('ts')">
+        component.ts
+      </button>
+      <button
+        type="button"
+        class="file-pill"
+        [class.active]="!single() && file() === 'html'"
+        (click)="setFile('html')">
+        component.html
+      </button>
+      <button
+        type="button"
+        class="file-pill"
+        [class.active]="!single() && file() === 'css'"
+        (click)="setFile('css')">
+        component.css
+      </button>
+      <span class="codev-sep"></span>
+      <label class="file-check">
+        <input type="checkbox" [checked]="single()" (change)="toggleSingle()" />
+        Archivo único (.ts)
+      </label>
+    </div>
+    <div class="codev-actions">
+      <span class="codev-size">{{ lines() }} líneas · {{ size() }} bytes</span>
+      <button type="button" class="prev-btn" (click)="copy()">
+        {{ copied() ? '✓ Copiado' : 'Copiar' }}
+      </button>
+      <button
+        type="button"
+        class="prev-btn"
+        (click)="download()"
+        [title]="'Descargar ' + fileName()">
+        Descargar
+      </button>
+      <button
+        type="button"
+        class="prev-btn"
+        (click)="downloadAll()"
+        title="Descargar lo tres archivos del componente">
+        Descargar 3 archivos
+      </button>
+      <button
+        type="button"
+        class="prev-btn"
+        (click)="downloadHtml()"
+        title="Descargar la versión clásica: HTML autocontenido (la de la vista previa)">
+        HTML simple
+      </button>
+    </div>
+  </div>
+  <textarea class="codev-area" readonly [value]="content()" spellcheck="false"></textarea>
+  <p class="codev-note">
+    La salida es un <strong>componente Angular standalone</strong> (Angular 15+). Guarde los archivos
+    en <code>src/app/pages/{{ out().fileBase }}</code> y declárelo en su ruta
+    (<code>loadComponent</code>) o imprórtelo donde lo necesite. La variante
+    <em>Archivo único</em> trae el HTML y el CSS incrustados en el propio <code>.ts</code>. El botón
+    <em>HTML simple</em> descarga el archivo autocontenido que se muestra en la vista previa.
+  </p>
+</div>

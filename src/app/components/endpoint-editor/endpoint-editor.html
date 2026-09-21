@@ -1,0 +1,72 @@
+<details class="ep" [formGroup]="group()">
+  <summary class="ep-title">{{ title() }}</summary>
+
+  <div class="ep-row">
+    <label class="ep-label">URL</label>
+    <input class="ep-input" formControlName="url" placeholder="https://api.ejemplo.com/..." />
+  </div>
+
+  <div class="ep-row ep-row-cols">
+    <div>
+      <label class="ep-label">Método</label>
+      <select class="ep-input" formControlName="method">
+        <option value="GET">GET</option>
+        <option value="POST">POST</option>
+        <option value="PUT">PUT</option>
+      </select>
+    </div>
+    <div class="ep-test-wrap">
+      <label class="ep-label">&nbsp;</label>
+      <button type="button" class="ep-btn ep-btn-test" (click)="runTest()" [disabled]="state() === 'testing'">
+        {{ state() === 'testing' ? 'Probando…' : 'Probar URL' }}
+      </button>
+    </div>
+  </div>
+
+  @if (state() !== 'idle') {
+    <div class="ep-test" [class.error]="state() === 'error'" [class.ok]="state() === 'ok'">
+      <strong>{{ testMessage() }}</strong>
+      @if (testResult()) {
+        <pre>{{ testResult() }}</pre>
+      }
+    </div>
+  }
+
+  <button type="button" class="ep-toggle" (click)="showJson.set(!showJson())">
+    {{ showJson() ? 'Ocultar JSON de request y respuesta' : 'Mostrar JSON de request y respuesta' }}
+  </button>
+
+  @if (showJson()) {
+    <div class="ep-json">
+      <div class="ep-json-block">
+        <div class="ep-json-head">
+          <span class="ep-label">JSON de request</span>
+          @if (fieldIds().length) {
+            <span class="ep-token">
+              <select class="ep-input ep-token-select" [value]="token()" (change)="onTokenChange($event)">
+                <option value="">Insertar {{ campoToken }}…</option>
+                @for (id of fieldIds(); track id) {
+                  <option [value]="tokenValue(id)">{{ id }}</option>
+                }
+              </select>
+              <button type="button" class="ep-btn ep-btn-mini" (click)="onInsertToken()">Insertar</button>
+            </span>
+          }
+        </div>
+        <textarea class="ep-textarea" formControlName="requestJson" rows="7"
+          spellcheck="false" [attr.placeholder]="requestPlaceholder()"></textarea>
+      </div>
+      <div class="ep-json-block">
+        <span class="ep-label">JSON de respuesta (documentación)</span>
+        <textarea class="ep-textarea" formControlName="responseJson" rows="7"
+          spellcheck="false" [attr.placeholder]="responsePlaceholder()"></textarea>
+      </div>
+      <p class="ep-hint">
+        En el <em>request</em> use placeholders como <code>{{ campoToken }}</code> para insertar el
+        valor del campo al generar o enviar. La respuesta modela el JSON que devuelve la API: su
+        mensaje <code>message</code> se muestra en la página y sus claves se aplican a los campos
+        con esos ids.
+      </p>
+    </div>
+  }
+</details>

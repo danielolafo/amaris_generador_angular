@@ -1,0 +1,32 @@
+<div class="prev">
+  <div class="prev-bar">
+    <span class="prev-title">Vista previa en vivo</span>
+    <div class="prev-actions">
+      <button
+        type="button"
+        class="prev-btn"
+        [class.active]="device() === 'desktop'"
+        (click)="device.set('desktop')">
+        🖥️ Escritorio
+      </button>
+      <button
+        type="button"
+        class="prev-btn"
+        [class.active]="device() === 'mobile'"
+        (click)="device.set('mobile')">
+        📱 Móvil
+      </button>
+      <button type="button" class="prev-btn prev-btn-primary" (click)="openInNewTab()">
+        Abrir en pestaña
+      </button>
+      <span class="prev-size">{{ size() }} bytes</span>
+    </div>
+  </div>
+  <div class="prev-frame" [class.mobile]="device() === 'mobile'">
+    <iframe [srcdoc]="html()" title="Vista previa de la página generada"></iframe>
+  </div>
+  <p class="prev-note">
+    La vista previa ejecuta las llamadas reales a las URLs configuradas. Si el servidor lo permite
+    (CORS) verá datos reales; si no, se mostrará el mensaje de error correspondiente.
+  </p>
+</div>

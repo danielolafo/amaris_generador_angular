@@ -1,0 +1,276 @@
+<div class="bwrap">
+  <aside class="b-left">
+    <form [formGroup]="form">
+      <section class="panel">
+        <h3 class="panel-title">Página</h3>
+        <div class="p-cell">
+          <label class="p-label">Encabezado de la página</label>
+          <input class="p-input" formControlName="pageTitle" placeholder="Título de la página" />
+        </div>
+
+        <div class="p-cell">
+          <label class="p-label">Distribución de los elementos</label>
+          <div class="layout-grid">
+            @for (l of layouts; track l.value) {
+              <button
+                type="button"
+                class="layout-card"
+                [class.active]="form.get('layout')?.value === l.value"
+                (click)="setLayout(l.value)">
+                <span class="layout-name">{{ l.label }}</span>
+                <span class="layout-hint">{{ l.hint }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        @if (form.get('layout')?.value === 'grid') {
+          <div class="p-cell">
+            <label class="p-label">Número de columnas</label>
+            <input class="p-input" type="number" min="1" max="6" formControlName="defaultColumns" />
+          </div>
+        }
+
+        <div class="p-row">
+          <label class="p-chip">
+            <input type="checkbox" formControlName="includeFooter" />
+            <span>Pie de página</span>
+          </label>
+        </div>
+        @if (form.get('includeFooter')?.value) {
+          <div class="p-cell">
+            <label class="p-label">Texto del pie</label>
+            <input class="p-input" formControlName="footerText" placeholder="© 2026 Mi empresa" />
+          </div>
+        }
+
+        <div class="p-cell">
+          <label class="p-label">Tema</label>
+          <div class="layout-grid">
+            <button
+              type="button"
+              class="layout-card"
+              [class.active]="form.get('theme')?.value === 'light'"
+              (click)="form.get('theme')?.setValue('light')">
+              <span class="layout-name">Claro</span>
+            </button>
+            <button
+              type="button"
+              class="layout-card"
+              [class.active]="form.get('theme')?.value === 'dark'"
+              (click)="form.get('theme')?.setValue('dark')">
+              <span class="layout-name">Oscuro</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="p-cell">
+          <label class="p-label">Mensaje de éxito (envío)</label>
+          <input class="p-input" formControlName="messageSuccess" placeholder="Datos enviados correctamente." />
+        </div>
+<div class="p-cell">
+          <label class="p-label">Mensaje de error (envío)</label>
+          <input class="p-input" formControlName="messageError" placeholder="Ocurrió un error al enviar." />
+        </div>
+        <div class="p-cell">
+          <label class="p-label">CSS personalizado (URL)</label>
+          <input class="p-input" formControlName="customCssUrl" placeholder="https://…/estilos.css" />
+          <p class="p-note">Se añadirá como <code>&lt;link&gt;</code> en la página generada para personalizar estilos.</p>
+        </div>
+      </section>
+
+      <section class="panel" [formGroupName]="'modal'">
+        <h3 class="panel-title">Modal de resultados</h3>
+        <p class="p-note">Al enviar el formulario se muestra un modal de confirmación, error o advertencia.</p>
+        <div class="p-row">
+          <label class="p-chip">
+            <input type="checkbox" formControlName="enabled" />
+            <span>Mostrar modales</span>
+          </label>
+        </div>
+        <div class="p-cell">
+          <label class="p-label">Título (éxito)</label>
+          <input class="p-input" formControlName="successTitle" placeholder="Carga exitosa" />
+        </div>
+        <div class="p-cell">
+          <label class="p-label">Mensaje (éxito)</label>
+          <input class="p-input" formControlName="successMessage" placeholder="Los datos se enviaron correctamente." />
+        </div>
+        <div class="p-cell">
+          <label class="p-label">Título (error)</label>
+          <input class="p-input" formControlName="errorTitle" placeholder="Ocurrió un error" />
+        </div>
+        <div class="p-cell">
+          <label class="p-label">Mensaje (error)</label>
+          <input class="p-input" formControlName="errorMessage" placeholder="No fue posible enviar los datos." />
+        </div>
+        <div class="p-cell">
+          <label class="p-label">Título (advertencia)</label>
+          <input class="p-input" formControlName="warningTitle" placeholder="Atención" />
+        </div>
+        <div class="p-cell">
+          <label class="p-label">Mensaje (advertencia)</label>
+          <input class="p-input" formControlName="warningMessage" placeholder="Revise los campos marcados." />
+        </div>
+      </section>
+      <section class="panel">
+        <h3 class="panel-title">Menú de elementos</h3>
+        <p class="p-note">Elija el tipo de elemento a añadir. Se agregarán a la sección seleccionada.</p>
+        <div class="palette">
+          @for (t of fieldTypes; track t.value) {
+            <button type="button" class="pal-item" (click)="addField(selectedSection(), t.value)">
+              <span class="pal-symbol">{{ t.icon }}</span>
+              <span class="pal-text">{{ t.label }}</span>
+            </button>
+          }
+        </div>
+        @if (sectionsArr().length) {
+          <div class="p-cell">
+            <label class="p-label">Sección destino</label>
+            <select
+              class="p-input"
+              [value]="selectedSection()"
+              (change)="onSectionSelect($event)">
+              @for (s of sectionsArr().controls; track $index; let i = $index) {
+                <option [value]="i">{{ s.get('title')?.value || 'Sección ' + (i + 1) }}</option>
+              }
+            </select>
+          </div>
+        }
+        <button type="button" class="p-btn-add" (click)="addSection()">+ Nueva sección</button>
+      </section>
+    </form>
+  </aside>
+
+  <main class="b-mid">
+    <div class="mid-bar">
+      <span class="mid-title">Secciones de la página</span>
+      <span class="mid-count">{{ sectionsArr().length }} sección(es) · {{ totalFields() }} campo(s)</span>
+    </div>
+
+    @for (section of sectionsArr().controls; track $index; let i = $index) {
+      <article class="sec" [formGroup]="sectionAt(i)">
+        <div class="sec-head">
+          <button type="button" class="sec-grip" (click)="moveSection(i, -1)" title="Subir sección">↑</button>
+          <button type="button" class="sec-grip" (click)="moveSection(i, 1)" title="Bajar sección">↓</button>
+          <input class="sec-title-input" formControlName="title" placeholder="Título de la sección" />
+          <label class="p-chip sec-dist">
+            <span>Distribución</span>
+            <select class="p-input sec-cols" formControlName="columns">
+              @for (n of [1, 2, 3, 4, 5, 6]; track n) {
+                <option [value]="n">{{ n }} columna(s)</option>
+              }
+            </select>
+          </label>
+          <button type="button" class="sec-del" (click)="removeSection(i)" title="Eliminar sección">✕</button>
+        </div>
+        <div class="sec-body">
+          <div class="sec-desc-cell">
+            <input class="p-input" formControlName="description" placeholder="Descripción de la sección (opcional)" />
+          </div>
+
+          <div class="sec-fields">
+            @for (field of fieldsArr(i).controls; track $index; let fi = $index) {
+              <app-field-editor
+                [field]="fieldAt(i, fi)"
+                [index]="fi"
+                (delete)="removeField(i, fi)"
+                (duplicate)="duplicateField(i, fi)"
+                (moveUp)="moveField(i, fi, -1)"
+                (moveDown)="moveField(i, fi, 1)" />
+            } @empty {
+              <p class="sec-empty">Esta sección no tiene elementos. Use el menú de la izquierda o los botones rápidos de abajo.</p>
+            }
+          </div>
+
+          <div class="sec-quick">
+            <span class="sec-quick-label">Añadir:</span>
+            @for (t of fieldTypes; track t.value) {
+              <button type="button" class="sec-quick-btn" (click)="addField(i, t.value)" [title]="t.label">
+                {{ t.icon }}
+              </button>
+            }
+          </div>
+        </div>
+      </article>
+    } @empty {
+      <div class="sec-empty-box">
+        <p>No hay secciones todavía. Cree la primera sección para empezar a armar la página.</p>
+        <button type="button" class="p-btn-add" (click)="addSection()">+ Nueva sección</button>
+      </div>
+    }
+
+    <button type="button" class="mid-add" (click)="addSection()">+ Agregar sección</button>
+  </main>
+
+  <aside class="b-right">
+    <form [formGroup]="form">
+      <section class="panel">
+        <h3 class="panel-title">URLs y servicios</h3>
+        <app-endpoint-editor
+          title="URL principal para cargar datos"
+          [group]="loadGroup()"
+          [fieldIds]="fieldIds()" />
+        <app-endpoint-editor
+          title="URL de envío de datos"
+          [group]="submitGroup()"
+          [fieldIds]="fieldIds()"
+          [isSubmit]="true" />
+
+        <div class="p-cell">
+          <label class="p-label">URL global de autocompletado (opcional)</label>
+          <input class="p-input" formControlName="autocompleteUrl" placeholder="https://api.ejemplo.com/autocomplete" />
+          <p class="p-note">Cada campo con autocompletado puede definir su propia URL; si está vacía se usa esta.</p>
+        </div>
+        <div class="p-cell">
+          <label class="p-label">Mínimo de caracteres para autocompletar</label>
+          <input class="p-input" type="number" min="1" max="10" formControlName="autocompleteMinChars" />
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3 class="panel-title">Botones de la página</h3>
+        <div class="btn-list">
+          @for (btn of buttonsArr().controls; track $index; let i = $index) {
+            <div class="btn-row" [formGroup]="buttonAt(i)">
+              <input class="p-input btn-label" formControlName="label" placeholder="Etiqueta" />
+              <select class="p-input" formControlName="action">
+                @for (a of buttonActions; track a.value) {
+                  <option [value]="a.value">{{ a.label }}</option>
+                }
+              </select>
+              @if (btn.get('action')?.value === 'navigation') {
+                <div class="btn-nav-wrap">
+                  <input class="p-input" formControlName="url" placeholder="https://…/destino" />
+                  <label class="p-chip">
+                    <input type="checkbox" formControlName="targetBlank" />
+                    <span>Nueva pestaña</span>
+                  </label>
+                </div>
+              }
+              <div class="btn-row-actions">
+                <select class="p-input" formControlName="style">
+                  @for (s of buttonStyles; track s.value) {
+                    <option [value]="s.value">{{ s.label }}</option>
+                  }
+                </select>
+                <button type="button" class="sec-grip" (click)="moveButton(i, -1)">↑</button>
+                <button type="button" class="sec-grip" (click)="moveButton(i, 1)">↓</button>
+                <button type="button" class="sec-del" (click)="removeButton(i)" title="Eliminar botón">✕</button>
+              </div>
+            </div>
+          } @empty {
+            <p class="p-note">Sin botones. Si no agrega ninguno, la página incluirá un botón "Enviar".</p>
+          }
+        </div>
+        <div class="btn-add-row">
+          @for (a of buttonActions; track a.value) {
+            <button type="button" class="sec-quick-btn" [title]="a.label" (click)="addButton(a.value)">
+              {{ a.label }}
+            </button>
+          }
+        </div>
+      </section>
+    </form>
+  </aside>
+</div>

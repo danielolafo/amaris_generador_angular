@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formulario de registro</title>
+<style>
+:root {
+  --pb-bg: #eef1f7;
+  --pb-dark-bg: #0f1420;
+  --pb-card: #ffffff;
+  --pb-card-dark: #1a2233;
+  --pb-text: #1c2333;
+  --pb-text-dark: #e6ebf5;
+  --pb-muted: #65708a;
+  --pb-muted-dark: #8b96ae;
+  --pb-border: #dde2ec;
+  --pb-border-dark: #2c3750;
+  --pb-primary: #2563eb;
+  --pb-primary-dark: #3b7bf0;
+  --pb-danger: #dc2626;
+  --pb-success: #16a34a;
+  --pb-radius: 10px;
+  --pb-shadow: 0 6px 24px rgba(28,35,51,.08);
+  --pb-shadow-dark: 0 6px 24px rgba(0,0,0,.35);
+  --pb-bg-var: var(--pb-bg);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  background: var(--pb-bg-var);
+  color: var(--pb-text);
+  line-height: 1.5;
+  transition: background .2s, color .2s;
+}
+body.pb-dark {
+  background: var(--pb-dark-bg);
+  color: var(--pb-text-dark);
+}
+.pb-wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+.pb-header {
+  background: linear-gradient(120deg, var(--pb-primary) 0%, #7b3ff2 100%);
+  color: #fff; padding: 26px 0; margin-bottom: 8px;
+}
+.pb-title { margin: 0; font-size: 26px; font-weight: 700; }
+.pb-subtitle { margin: 6px 0 0; opacity: .85; font-size: 14px; }
+.pb-card {
+  background: var(--pb-card);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius);
+  box-shadow: var(--pb-shadow);
+  padding: 22px;
+  margin: 18px 0;
+}
+body.pb-dark .pb-card { background: var(--pb-card-dark); border-color: var(--pb-border-dark); box-shadow: var(--pb-shadow-dark); }
+.pb-section-title { margin: 0 0 2px; font-size: 18px; font-weight: 700; }
+.pb-section-desc { margin: 0 0 14px; font-size: 13px; color: var(--pb-muted); }
+body.pb-dark .pb-section-desc { color: var(--pb-muted-dark); }
+.pb-grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(var(--pb-cols, 1), minmax(0, 1fr));
+}
+@media (max-width: 720px) { .pb-grid { grid-template-columns: 1fr !important; } }
+.pb-field { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pb-label { font-size: 13px; font-weight: 600; color: inherit; }
+.pb-req { color: var(--pb-danger); }
+.pb-input, .pb-select, .pb-textarea {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--pb-border);
+  border-radius: 8px; font-size: 14px; color: inherit;
+  background: var(--pb-card);
+  font-family: inherit;
+  transition: border-color .15s, box-shadow .15s;
+}
+body.pb-dark .pb-input, body.pb-dark .pb-select, body.pb-dark .pb-textarea {
+  border-color: var(--pb-border-dark); background: #121a2b; color: var(--pb-text-dark);
+}
+.pb-input:focus, .pb-select:focus, .pb-textarea:focus {
+  outline: none; border-color: var(--pb-primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.18);
+}
+.pb-help { font-size: 12px; color: var(--pb-muted); }
+body.pb-dark .pb-help { color: var(--pb-muted-dark); }
+.pb-check { display: flex; gap: 8px; align-items: center; font-size: 14px; cursor: pointer; padding: 4px 0; }
+.pb-check input { width: 17px; height: 17px; accent-color: var(--pb-primary); }
+.pb-radio-group { border: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.pb-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.pb-btn {
+  padding: 10px 20px; border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  transition: filter .15s, transform .05s;
+}
+.pb-btn:active { transform: translateY(1px); }
+.pb-btn-primary { background: var(--pb-primary); color: #fff; }
+.pb-btn-secondary { background: var(--pb-border); color: var(--pb-text); }
+body.pb-dark .pb-btn-secondary { background: var(--pb-border-dark); color: var(--pb-text-dark); }
+.pb-btn-success { background: var(--pb-success); color: #fff; }
+.pb-btn-danger { background: var(--pb-danger); color: #fff; }
+.pb-btn:hover { filter: brightness(1.06); }
+.pb-status { padding: 12px 14px; border-radius: 8px; margin-top: 16px; display: none; font-size: 14px; }
+.pb-status.success { display: block; background: rgba(22,163,74,.12); color: var(--pb-success); border: 1px solid rgba(22,163,74,.35); }
+.pb-status.error { display: block; background: rgba(220,38,38,.10); color: var(--pb-danger); border: 1px solid rgba(220,38,38,.35); }
+.pb-status.info { display: block; background: rgba(37,99,235,.10); color: var(--pb-primary-dark); border: 1px solid rgba(37,99,235,.35); }
+.pb-footer { text-align: center; padding: 20px 0 28px; font-size: 12px; color: var(--pb-muted); }
+body.pb-dark .pb-footer { color: var(--pb-muted-dark); }
+.pb-acdd {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+  margin-top: 4px; background: var(--pb-card); border: 1px solid var(--pb-border);
+  border-radius: 8px; box-shadow: var(--pb-shadow); max-height: 220px; overflow: auto;
+}
+body.pb-dark .pb-acdd { background: var(--pb-card-dark); border-color: var(--pb-border-dark); }
+.pb-ac-item { padding: 9px 12px; cursor: pointer; font-size: 14px; }
+.pb-ac-item:hover, .pb-ac-item.active { background: rgba(37,99,235,.10); }
+.pb-empty { padding: 26px; text-align: center; color: var(--pb-muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+  <header class="pb-header">
+    <div class="pb-wrap">
+      <h1 class="pb-title">Formulario de registro</h1>
+      <p class="pb-subtitle">1 sección(es) · 7 campo(s)</p>
+    </div>
+  </header>
+  <main class="pb-wrap">
+    <form id="pb-form" novalidate>
+<section class="pb-card">
+  <h2 class="pb-section-title">Datos personales</h2>
+  <div class="pb-grid" style="--pb-cols:2">
+      <div class="pb-field">
+        <label class="pb-label" for="f_nombre">Nombre <span class="pb-req">*</span></label>
+        <input class="pb-input" id="f_nombre" name="nombre" data-field="nombre" data-type="text" type="text" placeholder="Escriba su nombre" value="" required>
+        
+      </div>
+      <div class="pb-field">
+        <label class="pb-label" for="f_ciudad">Ciudad <span class="pb-req">*</span></label>
+        <select class="pb-select" id="f_ciudad" name="ciudad" data-field="ciudad" required data-select-url="https://example.com/api/ciudades" data-value-field="codigo" data-label-field="nombre" data-placeholder="Seleccione una ciudad">
+          <option value="">Seleccione una ciudad</option>
+        </select>
+      </div>
+      <div class="pb-field">
+        <label class="pb-label" for="f_correo">Correo electrónico <span class="pb-req">*</span></label>
+        <input class="pb-input" id="f_correo" name="correo" data-field="correo" data-type="email" type="email" placeholder="usuario@ejemplo.com" value="" required>
+        
+      </div>
+      <div class="pb-field">
+        <label class="pb-label" for="f_observaciones">Observaciones</label>
+        <textarea class="pb-textarea" id="f_observaciones" name="observaciones" data-field="observaciones" rows="4" placeholder="Escriba comentarios"></textarea>
+      </div>
+      <div class="pb-field">
+        <span class="pb-label">Estado</span>
+        <fieldset class="pb-radio-group" id="f_estado">
+          <label class="pb-check">
+            <input type="radio" name="estado" value="activo" data-field="estado" checked>
+            <span>Activo</span>
+          </label>
+          <label class="pb-check">
+            <input type="radio" name="estado" value="inactivo" data-field="estado">
+            <span>Inactivo</span>
+          </label>
+        </fieldset>
+      </div>
+      <div class="pb-field">
+        <label class="pb-check">
+          <input type="checkbox" id="f_acepto" name="acepto" data-field="acepto">
+          <span>Acepto los términos <span class="pb-req">*</span></span>
+        </label>
+      </div>
+      <div class="pb-field">
+        <label class="pb-label" for="f_empresa">Empresa</label>
+        <input class="pb-input" id="f_empresa" name="empresa" data-field="empresa" data-type="text" type="text" placeholder="Busque su empresa" value="" data-ac="1" data-ac-url="https://example.com/api/empresas">
+        
+      </div>
+  </div>
+</section>
+      <div id="pb-status" class="pb-status"></div>
+      <div class="pb-actions"><button class="pb-btn pb-btn-primary" type="submit" data-pb-action="submit">Enviar</button>
+      <button class="pb-btn pb-btn-secondary" type="button" data-pb-action="clean">Limpiar</button></div>
+    </form>
+  </main>
+<footer class="pb-footer">
+  <div class="pb-wrap">Generado con PageBuilder</div>
+</footer>
+<script>
+'use strict';
+var CFG = {"load":{"url":"https://example.com/api/registro/1","method":"GET","request":"","response":"{\n  \"nombre\": \"Ana\",\n  \"correo\": \"ana@ejemplo.com\",\n  \"ciudad\": \"medellin\",\n  \"observaciones\": \"Cliente desde 2023\",\n  \"estado\": \"activo\"\n}"},"submit":{"url":"https://example.com/api/registro","method":"POST","request":"{\n  \"nombre\": \"{{nombre}}\",\n  \"correo\": \"{{correo}}\",\n  \"ciudad\": \"{{ciudad}}\",\n  \"observaciones\": \"{{observaciones}}\",\n  \"estado\": \"{{estado}}\"\n}","response":"{\n  \"success\": true,\n  \"message\": \"Registro guardado correctamente\",\n  \"id\": \"R-1234\"\n}"},"autocomplete":{"url":"https://example.com/api/buscar","minChars":2},"messages":{"success":"Datos enviados correctamente.","error":"Ocurrió un error al enviar los datos."}};
+
+function $(s){ return document.querySelector(s); }
+function $$(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
+
+function valueOf(el){
+  if(!el) return null;
+  if(el.type === 'checkbox') return el.checked ? true : null;
+  if(el.type === 'radio') return el.checked ? el.value : null;
+  if(el.tagName === 'SELECT') return (el.value === '') ? null : el.value;
+  return el.value || null;
+}
+
+function setValue(el, v){
+  if(!el) return;
+  if(v === undefined || v === null) v = '';
+  if(el.type === 'checkbox'){ el.checked = !!(v === true || v === 'true' || v === 1 || v === '1'); return; }
+  if(el.type === 'radio'){ el.checked = (String(el.value) === String(v)); return; }
+  if(el.tagName === 'SELECT'){
+    var hit = null;
+    for(var i=0;i<el.options.length;i++){ if(el.options[i].value === String(v)){ hit = el.options[i]; break; } }
+    if(hit){ el.value = String(v); } else { el.dataset.pendingValue = String(v); }
+    return;
+  }
+  el.value = v;
+  if(el.dispatchEvent){ try{ el.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){} }
+}
+
+function pathGet(obj, path){
+  if(obj === null || obj === undefined) return undefined;
+  path = String(path || '');
+  if(obj && typeof obj === 'object' && Object.prototype.hasOwnProperty.call(obj, path)) return obj[path];
+  if(path.indexOf('.') >= 0 || path.indexOf('[') >= 0){
+    var parts = path.replace(/\[/g, '.').replace(/\]/g, '').split('.');
+    var cur = obj;
+    for(var i=0;i<parts.length;i++){
+      var p = parts[i];
+      if(cur === null || cur === undefined) return undefined;
+      if(cur instanceof Array && /^\d+$/.test(p)) cur = cur[Number(p)];
+      else cur = cur[p];
+    }
+    return cur;
+  }
+  if(obj instanceof Array){ return undefined; }
+  for(var k in obj){
+    if(Object.prototype.hasOwnProperty.call(obj, k) && String(k).toLowerCase() === path.toLowerCase()) return obj[k];
+  }
+  return undefined;
+}
+
+function mapResponse(data, loadMode){
+  if(!data || typeof data !== 'object') return;
+  $$('[data-field]').forEach(function(el){
+    var f = el.getAttribute('data-field');
+    var v = pathGet(data, f);
+    if(v !== undefined && v !== null){ setValue(el, v); }
+  });
+}
+
+function interpolate(tpl, data){
+  if(!tpl) return '';
+  if(tpl.indexOf('{{') < 0) return tpl;
+  return tpl.replace(/\{\{\s*([\w.]+)\s*\}\}/g, function(m, key){
+    var v = pathGet(data, key);
+    if(v === undefined || v === null) return '';
+    if(typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  });
+}
+
+function collectForm(){
+  var out = {};
+  $$('[data-field]').forEach(function(el){
+    var val = valueOf(el);
+    if(val !== null) out[el.getAttribute('data-field')] = val;
+  });
+  return out;
+}
+
+function showStatus(msg, kind){
+  var st = document.getElementById('pb-status');
+  if(!st) return;
+  if(msg){ st.textContent = msg; st.className = 'pb-status ' + (kind || 'info'); st.style.display = 'block'; }
+  else { st.textContent = ''; st.style.display = 'none'; }
+}
+
+function clearStatus(){ showStatus('', ''); }
+
+function pickList(data){
+  if(Array.isArray(data)) return data;
+  if(data && data.data && Array.isArray(data.data)) return data.data;
+  if(data && data.items && Array.isArray(data.items)) return data.items;
+  if(data && data.results && Array.isArray(data.results)) return data.results;
+  if(data && data.list && Array.isArray(data.list)) return data.list;
+  return [];
+}
+
+function loadSelects(){
+  $$('select[data-select-url]').forEach(function(sel){
+    var url = sel.getAttribute('data-select-url');
+    if(!url) return;
+    var vf = sel.getAttribute('data-value-field') || 'value';
+    var lf = sel.getAttribute('data-label-field') || 'label';
+    var field = sel.getAttribute('data-field');
+    var pending = sel.dataset.pendingValue;
+    sel.disabled = true;
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var list = pickList(data);
+        var cur = sel.value;
+        sel.innerHTML = '';
+        var phOpt = document.createElement('option');
+        phOpt.value = '';
+        phOpt.textContent = sel.getAttribute('data-placeholder') || 'Seleccione...';
+        sel.appendChild(phOpt);
+        list.forEach(function(item){
+          var it = (item && typeof item === 'object') ? item : { value: item, label: item };
+          var ov = pathGet(it, vf);
+          var ol = pathGet(it, lf);
+          if(ov === undefined || ov === null) ov = (typeof item === 'object') ? pathGet(item, field) : item;
+          if(ol === undefined || ol === null) ol = (typeof item === 'object') ? (it.label || it.name || it.id || ov) : item;
+          var opt = document.createElement('option');
+          opt.value = (ov === undefined || ov === null) ? '' : String(ov);
+          opt.textContent = (ol === undefined || ol === null) ? '' : String(ol);
+          sel.appendChild(opt);
+        });
+        var want = (pending !== undefined && pending !== null) ? pending : cur;
+        sel.dataset.pendingValue = '';
+        setValue(sel, want);
+        sel.disabled = false;
+        try{ sel.dispatchEvent(new Event('change', { bubbles: true })); }catch(e){}
+      })
+      .catch(function(){
+        sel.disabled = false;
+        sel.setAttribute('data-load-error', '1');
+      });
+  });
+}
+
+function runLoad(){
+  if(!CFG.load || !CFG.load.url) { loadSelects(); return; }
+  var data = collectForm();
+  var tpl = CFG.load.request || '';
+  var body = /\{\{/.test(tpl) ? interpolate(tpl, data) : (tpl.trim() ? tpl : '');
+  var method = (CFG.load.method || 'GET').toUpperCase();
+  var url = CFG.load.url;
+  var init = { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' } };
+  if(method === 'GET'){
+    init.method = 'GET';
+    if(body){ url = url + (url.indexOf('?') >= 0 ? '&' : '?') + body; }
+  } else {
+    init.method = method;
+    init.body = body ? body : JSON.stringify(data);
+  }
+  showStatus('Cargando datos...', 'info');
+  fetch(url, init)
+    .then(function(r){ return r.text(); })
+    .then(function(text){
+      var parsed;
+      try { parsed = JSON.parse(text); } catch(e){ parsed = text; }
+      if(parsed && typeof parsed === 'object'){ mapResponse(parsed, true); loadSelects(); }
+      else { loadSelects(); }
+      var msg = (parsed && typeof parsed === 'object' && parsed.message) ? parsed.message : 'Datos cargados correctamente.';
+      showStatus(msg, 'success');
+    })
+    .catch(function(err){
+      loadSelects();
+      showStatus('Error al cargar los datos: ' + (err && err.message ? err.message : err), 'error');
+    });
+}
+
+function bindAutocomplete(){
+  var min = (CFG.autocomplete.minChars > 0) ? CFG.autocomplete.minChars : 2;
+  $$('[data-ac]').forEach(function(input){
+    var inputUrl = input.getAttribute('data-ac-url');
+    var url = inputUrl || (CFG.autocomplete ? CFG.autocomplete.url : '');
+    if(!url) return;
+    input.setAttribute('autocomplete', 'off');
+    var box = document.createElement('div');
+    box.className = 'pb-acdd';
+    box.style.display = 'none';
+    var holder = input.parentNode;
+    holder.appendChild(box);
+    var timer = null;
+    var lastQ = input.value;
+    function hide(){ box.style.display = 'none'; }
+    function search(v){
+      var url2 = url + (url.indexOf('?') >= 0 ? '&' : '?')
+        + 'q=' + encodeURIComponent(v)
+        + '&field=' + encodeURIComponent(input.getAttribute('data-field') || '');
+      fetch(url2, { headers: { 'Accept': 'application/json' } })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          if(lastQ !== input.value) return;
+          var list = pickList(data);
+          if(!list.length){ hide(); return; }
+          box.innerHTML = '';
+          list.forEach(function(item, ix){
+            var it = (item && typeof item === 'object') ? item : { label: item, value: item };
+            var lb = it.label || it.text || it.name || it.id || it.value;
+            if(lb === undefined || lb === null) return;
+            var row = document.createElement('div');
+            row.className = 'pb-ac-item';
+            row.textContent = String(lb);
+            row.tabIndex = 0;
+            row.addEventListener('mousedown', function(ev){
+              ev.preventDefault();
+              input.value = String(lb);
+              hide();
+              try{ input.dispatchEvent(new Event('input', { bubbles: true })); }catch(e){}
+            });
+            box.appendChild(row);
+          });
+          box.style.display = 'block';
+        })
+        .catch(function(){ hide(); });
+    }
+    input.addEventListener('input', function(){
+      var v = input.value;
+      lastQ = v;
+      if(timer) clearTimeout(timer);
+      if(v.length < min){ hide(); return; }
+      timer = setTimeout(function(){ search(v); }, 250);
+    });
+    input.addEventListener('focus', function(){
+      if(input.value && input.value.length >= min) search(input.value);
+    });
+    input.addEventListener('blur', function(){ setTimeout(hide, 200); });
+    input.addEventListener('keydown', function(e){
+      var items = box.querySelectorAll('.pb-ac-item');
+      var idx = -1;
+      for(var i=0;i<items.length;i++){ if(items[i].className.indexOf('active') >= 0){ idx = i; } }
+      if(e.key === 'ArrowDown' && items.length){
+        e.preventDefault();
+        for(var j=0;j<items.length;j++){ items[j].className = 'pb-ac-item' + (j === Math.min(idx + 1, items.length - 1) ? ' active' : ''); }
+      } else if(e.key === 'ArrowUp' && items.length){
+        e.preventDefault();
+        var newIdx = (idx <= 0) ? 0 : idx - 1;
+        for(var k=0;k<items.length;k++){ items[k].className = 'pb-ac-item' + (k === newIdx ? ' active' : ''); }
+      } else if(e.key === 'Enter' && idx >= 0 && items.length){
+        e.preventDefault();
+        var target = items[idx];
+        target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      } else if(e.key === 'Escape'){ hide(); }
+    });
+  });
+}
+
+function submitForm(e){
+  if(e) e.preventDefault();
+  var form = document.getElementById('pb-form');
+  if(form && !form.checkValidity()){
+    form.reportValidity();
+    return;
+  }
+  if(!CFG.submit || !CFG.submit.url){
+    showStatus('No se ha configurado una URL para el envío de datos.', 'error');
+    return;
+  }
+  var data = collectForm();
+  var tpl = CFG.submit.request || '';
+  var body = /\{\{/.test(tpl) ? interpolate(tpl, data) : (tpl.trim() ? tpl : '');
+  var method = (CFG.submit.method || 'POST').toUpperCase();
+  var url = CFG.submit.url;
+  var init = { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' } };
+  if(method === 'GET'){
+    init.method = 'GET';
+    if(body){ url = url + (url.indexOf('?') >= 0 ? '&' : '?') + body; }
+  } else {
+    init.method = method;
+    init.body = body ? body : JSON.stringify(data);
+  }
+  showStatus('Enviando datos...', 'info');
+  fetch(url, init)
+    .then(function(r){ return r.text(); })
+    .then(function(text){
+      var parsed;
+      try { parsed = JSON.parse(text); } catch(e){ parsed = text; }
+      if(parsed && typeof parsed === 'object'){
+        mapResponse(parsed, false);
+        var m = parsed.message || parsed.msg;
+        if(m) showStatus(String(m), 'success');
+        else showStatus(CFG.messages.success, 'success');
+      } else {
+        showStatus(CFG.messages.success || 'Datos enviados correctamente.', 'success');
+      }
+    })
+    .catch(function(err){
+      showStatus(CFG.messages.error || ('Error al enviar los datos: ' + (err && err.message ? err.message : err)), 'error');
+    });
+}
+
+function cleanForm(){
+  var form = document.getElementById('pb-form');
+  if(form) form.reset();
+  $$('[data-field]').forEach(function(el){
+    if(el.type === 'checkbox'){ el.checked = false; return; }
+    if(el.type === 'radio'){ el.checked = false; return; }
+    if('value' in el) el.value = '';
+  });
+  clearStatus();
+}
+
+function wire(){
+  var form = document.getElementById('pb-form');
+  if(form) form.addEventListener('submit', submitForm);
+  $$('[data-pb-action]').forEach(function(btn){
+    var action = btn.getAttribute('data-pb-action');
+    if(action === 'submit') return;
+    btn.addEventListener('click', function(){
+      if(btn.getAttribute('type') === 'submit') return;
+      if(action === 'clean'){ cleanForm(); return; }
+      if(action === 'navigation'){
+        var u = btn.getAttribute('data-url');
+        if(!u){ showStatus('El botón de navegación no tiene URL.', 'error'); return; }
+        if(btn.getAttribute('data-newtab') === '1'){ window.open(u, '_blank'); }
+        else { window.location.href = u; }
+      }
+    });
+  });
+  bindAutocomplete();
+  runLoad();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', wire);
+} else {
+  wire();
+}
+
+window.PB_PAGE_API = {
+  getValues: collectForm,
+  setValues: function(data){ mapResponse(data, true); },
+  submit: submitForm,
+  clean: cleanForm,
+  reload: runLoad,
+  populateSelects: loadSelects
+};
+</script>
+</body>
+</html>
