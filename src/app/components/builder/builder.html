@@ -113,6 +113,52 @@
           <input class="p-input" formControlName="warningMessage" placeholder="Revise los campos marcados." />
         </div>
       </section>
+
+      <section class="panel" [formGroupName]="'confirm'">
+        <h3 class="panel-title">Confirmación antes del envío</h3>
+        <p class="p-note">
+          Muestra un modal opcional para que el usuario confirme antes de enviar los datos.
+          Puede incluir variables de la página con <code>{{ '{{campo}}' }}</code>.
+        </p>
+        <div class="p-row">
+          <label class="p-chip">
+            <input type="checkbox" formControlName="enabled" />
+            <span>Mostrar confirmación</span>
+          </label>
+        </div>
+        @if (confirmGroup().get('enabled')?.value) {
+          <div class="p-cell">
+            <label class="p-label">Título</label>
+            <input class="p-input" formControlName="title" placeholder="Confirmar envío" />
+          </div>
+          <div class="p-cell">
+            <label class="p-label">Mensaje</label>
+            <textarea class="p-input" rows="2" formControlName="message" #confMsg placeholder="¿Está seguro de que desea enviar los datos?"></textarea>
+            <div class="token-row">
+              <span class="p-note">Insertar variable:</span>
+              <select
+                class="p-input token-sel"
+                #confTok
+                (change)="insertFieldToken(confMsg, confTok.value); confTok.value = ''">
+                <option value="">Seleccione un campo…</option>
+                @for (id of fieldIds(); track id) {
+                  <option [value]="id">{{ id }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div class="p-row">
+            <div class="p-cell">
+              <label class="p-label">Texto aceptar</label>
+              <input class="p-input" formControlName="okText" placeholder="Aceptar" />
+            </div>
+            <div class="p-cell">
+              <label class="p-label">Texto cancelar</label>
+              <input class="p-input" formControlName="cancelText" placeholder="Cancelar" />
+            </div>
+          </div>
+        }
+      </section>
       <section class="panel">
         <h3 class="panel-title">Menú de elementos</h3>
         <p class="p-note">Elija el tipo de elemento a añadir. Se agregarán a la sección seleccionada.</p>
@@ -149,8 +195,15 @@
     </div>
 
     @for (section of sectionsArr().controls; track $index; let i = $index) {
-      <article class="sec" [formGroup]="sectionAt(i)">
+      <article
+        class="sec"
+        [formGroup]="sectionAt(i)"
+        [class.dragging]="draggingSection() === i"
+        (dragover)="onSectionDragOver($event)"
+        (drop)="onSectionDrop(i)"
+        (dragend)="onSectionDragEnd()">
         <div class="sec-head">
+          <span class="sec-grip sec-drag" draggable="true" (dragstart)="onSectionDragStart(i)" title="Arrastrar para reordenar">⠿</span>
           <button type="button" class="sec-grip" (click)="moveSection(i, -1)" title="Subir sección">↑</button>
           <button type="button" class="sec-grip" (click)="moveSection(i, 1)" title="Bajar sección">↓</button>
           <input class="sec-title-input" formControlName="title" placeholder="Título de la sección" />
@@ -168,12 +221,18 @@
           <div class="sec-desc-cell">
             <input class="p-input" formControlName="description" placeholder="Descripción de la sección (opcional)" />
           </div>
+          <div class="sec-desc-cell">
+            <input class="p-input" formControlName="visibleWhen" placeholder="Mostrar solo si: p. ej. ciudad == 'bogota'" />
+            <p class="p-note">Condición opcional. La sección solo se muestra si se cumple. Referencie campos por su <em>id</em> con operadores como <code>==</code>, <code>&amp;&amp;</code>, <code>!=</code>.</p>
+          </div>
 
           <div class="sec-fields">
             @for (field of fieldsArr(i).controls; track $index; let fi = $index) {
               <app-field-editor
                 [field]="fieldAt(i, fi)"
                 [index]="fi"
+                [loadJsonKeys]="jsonKeysLoad()"
+                [submitJsonKeys]="jsonKeysSubmit()"
                 (delete)="removeField(i, fi)"
                 (duplicate)="duplicateField(i, fi)"
                 (moveUp)="moveField(i, fi, -1)"

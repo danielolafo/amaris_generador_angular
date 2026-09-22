@@ -34,6 +34,14 @@ export interface JsonEndpoint {
   responseJson: string;
 }
 
+export interface ConfirmConfig {
+  enabled: boolean;
+  title: string;
+  message: string;
+  okText: string;
+  cancelText: string;
+}
+
 export interface Field {
   id: string;
   label: string;
@@ -53,6 +61,7 @@ export interface Field {
   loadField: string;
   submitField: string;
   requiredMessage: string;
+  visibleWhen: string;
 }
 
 export interface Section {
@@ -61,6 +70,7 @@ export interface Section {
   description: string;
   columns: number;
   fields: Field[];
+  visibleWhen: string;
 }
 
 export interface PageButton {
@@ -97,6 +107,7 @@ export interface PageConfig {
   messageError: string;
   customCssUrl: string;
   modal: ModalConfig;
+  confirm: ConfirmConfig;
   sections: Section[];
   buttons: PageButton[];
 }
@@ -158,6 +169,16 @@ export function defaultModal(): ModalConfig {
   };
 }
 
+export function defaultConfirm(): ConfirmConfig {
+  return {
+    enabled: false,
+    title: 'Confirmar envío',
+    message: '¿Está seguro de que desea enviar los datos?',
+    okText: 'Aceptar',
+    cancelText: 'Cancelar',
+  };
+}
+
 export function defaultConfig(): PageConfig {
   const firstName: Field = {
     id: 'nombre',
@@ -178,6 +199,7 @@ export function defaultConfig(): PageConfig {
     loadField: 'nombre',
     submitField: 'nombre',
     requiredMessage: '',
+    visibleWhen: '',
   };
   const city: Field = {
     id: 'ciudad',
@@ -202,6 +224,7 @@ export function defaultConfig(): PageConfig {
     loadField: 'ciudad',
     submitField: 'ciudad',
     requiredMessage: '',
+    visibleWhen: '',
   };
   const email: Field = {
     id: 'correo',
@@ -222,6 +245,7 @@ export function defaultConfig(): PageConfig {
     loadField: 'correo',
     submitField: 'correo',
     requiredMessage: '',
+    visibleWhen: '',
   };
   const notes: Field = {
     id: 'observaciones',
@@ -242,6 +266,7 @@ export function defaultConfig(): PageConfig {
     loadField: 'observaciones',
     submitField: 'observaciones',
     requiredMessage: '',
+    visibleWhen: '',
   };
   const status: Field = {
     id: 'estado',
@@ -265,6 +290,7 @@ export function defaultConfig(): PageConfig {
     loadField: 'estado',
     submitField: 'estado',
     requiredMessage: '',
+    visibleWhen: '',
   };
 
   return {
@@ -316,12 +342,14 @@ export function defaultConfig(): PageConfig {
     messageError: 'Ocurrió un error al enviar los datos.',
     customCssUrl: '',
     modal: defaultModal(),
+    confirm: defaultConfirm(),
     sections: [
       {
         id: uid('sec'),
         title: 'Datos personales',
         description: '',
         columns: 2,
+        visibleWhen: '',
         fields: [firstName, city, email, notes, status],
       },
     ],

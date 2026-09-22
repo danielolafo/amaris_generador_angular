@@ -56,7 +56,10 @@ ${script}
     <div class="pb-modal-icon" id="pb-modal-icon"></div>
     <h3 id="pb-modal-title"></h3>
     <p id="pb-modal-msg"></p>
-    <button type="button" class="pb-btn pb-btn-primary" id="pb-modal-ok">Aceptar</button>
+    <div class="pb-modal-actions">
+      <button type="button" class="pb-btn pb-btn-secondary" id="pb-modal-cancel" style="display:none">Cancelar</button>
+      <button type="button" class="pb-btn pb-btn-primary" id="pb-modal-ok">Aceptar</button>
+    </div>
   </div>
 </div>`;
   }
@@ -265,13 +268,19 @@ body.pb-dark .pb-modal-box { background: var(--pb-card-dark); border-color: var(
 .pb-modal-box h3 { margin: 0 0 8px; font-size: 19px; }
 .pb-modal-box p { margin: 0 0 20px; font-size: 14px; color: var(--pb-muted); }
 body.pb-dark .pb-modal-box p { color: var(--pb-muted-dark); }
+.pb-modal-actions { display: flex; gap: 10px; justify-content: center; }
+.pb-hide { display: none !important; }
 .pb-empty { padding: 26px; text-align: center; color: var(--pb-muted); font-size: 14px; }
 `;
   }
 
   private renderSection(section: Section, columns: number): string {
+    const secId = String(section.id).replace(/[^A-Za-z0-9_-]+/g, '_');
+    const showIf = section.visibleWhen
+      ? ` data-show-if="${this.attr(String(section.visibleWhen).trim())}"`
+      : '';
     if (!section.fields || section.fields.length === 0) {
-      return `<section class="pb-card">
+      return `<section class="pb-card" data-sec="${secId}"${showIf}>
   <h2 class="pb-section-title">${this.esc(section.title)}</h2>
   <p class="pb-empty">Esta sección no tiene campos configurados.</p>
 </section>`;
@@ -280,7 +289,7 @@ body.pb-dark .pb-modal-box p { color: var(--pb-muted-dark); }
       ? `<p class="pb-section-desc">${this.esc(section.description)}</p>`
       : '';
     const fields = section.fields.map((f) => this.renderField(f)).join('\n');
-    return `<section class="pb-card">
+    return `<section class="pb-card" data-sec="${secId}"${showIf}>
   <h2 class="pb-section-title">${this.esc(section.title)}</h2>
 ${desc}  <div class="pb-grid" style="--pb-cols:${Math.max(1, Math.min(6, Number(columns) || 1))}">
 ${fields}
@@ -304,16 +313,19 @@ ${fields}
     const acUrl = field.autocomplete && field.autocompleteUrl
       ? ` data-ac-url="${this.attr(field.autocompleteUrl)}"`
       : '';
+    const showIf = field.visibleWhen
+      ? ` data-show-if="${this.attr(String(field.visibleWhen).trim())}"`
+      : '';
 
     switch (field.type) {
       case 'textarea':
-        return `      <div class="pb-field">
+        return `      <div class="pb-field"${showIf}>
         <label class="pb-label" for="${cid}">${label}${req}</label>
         <textarea class="pb-textarea" id="${cid}" name="${id}" data-field="${id}" rows="4" placeholder="${ph}"${requiredAttr}${readonlyAttr}>${this.esc(field.defaultValue)}</textarea>
         <span class="pb-error" data-error-for="${id}"></span>${help}
       </div>`;
       case 'select':
-        return `      <div class="pb-field">
+        return `      <div class="pb-field"${showIf}>
         <label class="pb-label" for="${cid}">${label}${req}</label>
         <select class="pb-select" id="${cid}" name="${id}" data-field="${id}"${requiredAttr}${this.selectAttrs(field)}>
           <option value="">${ph || 'Seleccione...'}</option>${this.renderOptions(field)}
@@ -321,7 +333,7 @@ ${fields}
         <span class="pb-error" data-error-for="${id}"></span>${help}
       </div>`;
       case 'checkbox':
-        return `      <div class="pb-field">
+        return `      <div class="pb-field"${showIf}>
         <label class="pb-check">
           <input type="checkbox" id="${cid}" name="${id}" data-field="${id}"${this._checked(field)}>
           <span>${label}${req}</span>
@@ -329,14 +341,14 @@ ${fields}
         <span class="pb-error" data-error-for="${id}"></span>${help}
       </div>`;
       case 'radio':
-        return `      <div class="pb-field">
+        return `      <div class="pb-field"${showIf}>
         <span class="pb-label">${label}${req}</span>
         <fieldset class="pb-radio-group" id="${cid}">${this.renderRadios(field, id)}
         </fieldset>
         <span class="pb-error" data-error-for="${id}"></span>${help}
       </div>`;
       default:
-        return `      <div class="pb-field">
+        return `      <div class="pb-field"${showIf}>
         <label class="pb-label" for="${cid}">${label}${req}</label>
         <input class="pb-input" id="${cid}" name="${id}" data-field="${id}" data-type="${field.type}" type="${field.type}" placeholder="${ph}" value="${dv}"${requiredAttr}${readonlyAttr}${ac}${acUrl}>
         <span class="pb-error" data-error-for="${id}"></span>${help}
@@ -437,6 +449,13 @@ ${fields}
         warningTitle: c.modal?.warningTitle || 'Advertencia',
         warningMessage: c.modal?.warningMessage || 'Revise los campos marcados y vuelva a intentarlo.',
       },
+      confirm: {
+        enabled: !!c.confirm?.enabled,
+        title: c.confirm?.title || 'Confirmar envío',
+        message: c.confirm?.message || '¿Está seguro de que desea enviar los datos?',
+        okText: c.confirm?.okText || 'Aceptar',
+        cancelText: c.confirm?.cancelText || 'Cancelar',
+      },
     });
     const fmap = c.sections
       .flatMap((s) => s.fields || [])
@@ -448,10 +467,25 @@ ${fields}
         required: !!f.required,
         msg: f.requiredMessage || '',
       }));
+    const visSections = c.sections
+      .filter((s) => !!s.visibleWhen)
+      .map((s) => ({
+        id: String(s.id).replace(/[^A-Za-z0-9_-]+/g, '_'),
+        cond: String(s.visibleWhen).trim(),
+      }));
+    const visFields = c.sections
+      .flatMap((s) => s.fields || [])
+      .filter((f: Field) => !!f.visibleWhen)
+      .map((f: Field) => ({
+        id: String(f.id).replace(/[^A-Za-z0-9_-]+/g, '_'),
+        cond: String(f.visibleWhen).trim(),
+      }));
 
     return `'use strict';
 var CFG = ${cfg};
 var FMAP = ${JSON.stringify(fmap)};
+var VIS = { sections: ${JSON.stringify(visSections)}, fields: ${JSON.stringify(visFields)} };
+var PENDING_SUBMIT = null;
 
 function $(s){ return document.querySelector(s); }
 function $$(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
@@ -518,6 +552,7 @@ function validateFields(){
   var missing = [];
   FMAP.forEach(function(f){
     if(!f.required) return;
+    if(isFieldHidden(f.id)) return;
     var v = fieldValue(f);
     var ok = (v !== undefined && v !== null && String(v).trim() !== '');
     markError(f, !ok);
@@ -578,9 +613,153 @@ function interpolate(tpl, data){
   });
 }
 
+function pbFieldVal(id){
+  var el = document.querySelector('[data-field="' + id + '"]');
+  var v = valueOf(el);
+  if(v === undefined || v === null || v === '') return null;
+  if(typeof v === 'number') return v;
+  var s = String(v);
+  if(s.trim() !== '' && !isNaN(Number(s))) return Number(s);
+  return s;
+}
+
+function pbTokenize(expr){
+  var toks = [];
+  var i = 0;
+  var n = expr.length;
+  while(i < n){
+    var ch = expr[i];
+    if(ch === ' ' || ch === '\\t' || ch === '\\n' || ch === '\\r'){ i++; continue; }
+    if(ch === '(' || ch === ')'){ toks.push(ch); i++; continue; }
+    if(ch === "'"){
+      var j = expr.indexOf("'", i + 1);
+      if(j < 0) return null;
+      toks.push(expr.slice(i, j + 1)); i = j + 1; continue;
+    }
+    if(ch === '"'){
+      var j2 = expr.indexOf('"', i + 1);
+      if(j2 < 0) return null;
+      toks.push(expr.slice(i, j2 + 1)); i = j2 + 1; continue;
+    }
+    if(!isNaN(ch) || ch === '.'){
+      var m = /^[0-9]+(?:\\.[0-9]+)?/.exec(expr.slice(i));
+      if(m){ toks.push(Number(m[0])); i += m[0].length; continue; }
+    }
+    var ops = ['==', '!=', '<=', '>=', '&&', '||'];
+    var matched = null;
+    for(var oi = 0; oi < ops.length; oi++){
+      if(expr.slice(i, i + ops[oi].length) === ops[oi]){ matched = ops[oi]; break; }
+    }
+    if(matched){ toks.push(matched); i += matched.length; continue; }
+    if(ch === '<' || ch === '>'){ toks.push(ch); i++; continue; }
+    if(ch === '!'){ toks.push(ch); i++; continue; }
+    if(/[A-Za-z]/.test(ch)){
+      var m2 = /^[A-Za-z][A-Za-z0-9_.-]*/.exec(expr.slice(i));
+      if(m2){ toks.push(m2[0]); i += m2[0].length; continue; }
+    }
+    return null;
+  }
+  return toks;
+}
+
+function pbCompare(a, op, b){
+  var same = (a === b) || (String(a) === String(b));
+  if(op === '==') return same;
+  if(op === '!=') return !same;
+  if(typeof a === 'number' && typeof b === 'number'){
+    if(op === '<') return a < b;
+    if(op === '>') return a > b;
+    if(op === '<=') return a <= b;
+    if(op === '>=') return a >= b;
+  }
+  var as = String(a), bs = String(b);
+  if(op === '<') return as < bs;
+  if(op === '>') return as > bs;
+  if(op === '<=') return as <= bs;
+  if(op === '>=') return as >= bs;
+  return false;
+}
+
+function pbEval(expr, data){
+  var toks = pbTokenize(expr);
+  if(!toks) return false;
+  var pos = 0;
+  function peek(){ return toks[pos]; }
+  function parseOr(){
+    var l = parseAnd();
+    while(peek() === '||'){ pos++; var r = parseAnd(); l = l || r; }
+    return l;
+  }
+  function parseAnd(){
+    var l = parseNot();
+    while(peek() === '&&'){ pos++; var r = parseNot(); l = l && r; }
+    return l;
+  }
+  function parseNot(){
+    if(peek() === '!'){ pos++; return !parseNot(); }
+    return parseCmp();
+  }
+  function parseCmp(){
+    var l = parsePrim();
+    var op = peek();
+    if(op === '==' || op === '!=' || op === '<' || op === '>' || op === '<=' || op === '>='){
+      pos++;
+      var r = parsePrim();
+      return pbCompare(l, op, r);
+    }
+    return l;
+  }
+  function parsePrim(){
+    var t = peek();
+    if(t === undefined) return null;
+    pos++;
+    if(t === '('){
+      var v = parseOr();
+      if(peek() === ')') pos++;
+      return v;
+    }
+    if(typeof t === 'number') return t;
+    if(typeof t === 'string'){
+      if(t.charAt(0) === "'") return t.slice(1, -1);
+      if(t.charAt(0) === '"') return t.slice(1, -1);
+      return pbFieldVal(t);
+    }
+    return null;
+  }
+  return parseOr();
+}
+
+function isFieldHidden(id){
+  var el = document.querySelector('[data-field="' + id + '"]');
+  if(!el) return false;
+  if(el.closest && el.closest('.pb-hide')) return true;
+  var wrap = el.closest ? el.closest('.pb-field') : null;
+  return !!(wrap && wrap.dataset.pbHidden === '1');
+}
+
+function refreshVisibility(){
+  var sandbox = collectForm();
+  VIS.sections.forEach(function(it){
+    var el = document.querySelector('[data-sec="' + it.id + '"]');
+    if(!el) return;
+    var show = it.cond ? pbEval(it.cond, sandbox) : true;
+    el.classList.toggle('pb-hide', !show);
+    el.dataset.pbHidden = show ? '' : '1';
+  });
+  VIS.fields.forEach(function(it){
+    var el = document.querySelector('[data-field="' + it.id + '"]');
+    var wrap = (el && el.closest) ? el.closest('.pb-field') : null;
+    if(!wrap) return;
+    var show = it.cond ? pbEval(it.cond, sandbox) : true;
+    wrap.classList.toggle('pb-hide', !show);
+    wrap.dataset.pbHidden = show ? '' : '1';
+  });
+}
+
 function collectForm(){
   var out = {};
   FMAP.forEach(function(f){
+    if(isFieldHidden(f.id)) return;
     var v = fieldValue(f);
     if(v === undefined || v === null) return;
     var key = f.submit || f.id;
@@ -599,6 +778,9 @@ function collectForm(){
 function mostrarModal(tipo, titulo, msg){
   var mdl = document.getElementById('pb-modal');
   if(!mdl) return;
+  var data = collectForm();
+  if(titulo) titulo = interpolate(titulo, data);
+  if(msg) msg = interpolate(msg, data);
   var icons = { success: '&#10003;', error: '&#10005;', warning: '&#33;' };
   var box = mdl.querySelector('.pb-modal-box');
   box.className = 'pb-modal-box pb-modal-' + (tipo || 'info');
@@ -608,12 +790,25 @@ function mostrarModal(tipo, titulo, msg){
   mdl.classList.add('show');
 }
 
+function mostrarConfirm(onOk){
+  if(!CFG.confirm || !CFG.confirm.enabled) return;
+  PENDING_SUBMIT = onOk;
+  var cancel = document.getElementById('pb-modal-cancel');
+  if(cancel){ cancel.style.display = 'inline-flex'; cancel.textContent = CFG.confirm.cancelText || 'Cancelar'; }
+  var ok = document.getElementById('pb-modal-ok');
+  if(ok) ok.textContent = CFG.confirm.okText || 'Aceptar';
+  mostrarModal('warning', CFG.confirm.title || 'Confirmar envío', CFG.confirm.message || '¿Está seguro de que desea enviar los datos?');
+}
+
 function cerrarModal(){
+  PENDING_SUBMIT = null;
   var mdl = document.getElementById('pb-modal');
   if(mdl) mdl.classList.remove('show');
 }
 
 function notify(tipo, titulo, msg){
+  if(titulo) titulo = interpolate(titulo, collectForm());
+  if(msg) msg = interpolate(msg, collectForm());
   if(!CFG.modal.enabled){
     showStatus(msg, tipo === 'success' ? 'success' : (tipo === 'error' ? 'error' : 'info'));
     return;
@@ -809,6 +1004,14 @@ function submitForm(e){
     notify('error', CFG.modal.errorTitle, CFG.modal.errorMessage || 'No se ha configurado una URL para el envío de datos.');
     return;
   }
+  if(CFG.confirm && CFG.confirm.enabled){
+    mostrarConfirm(submitNow);
+    return;
+  }
+  submitNow();
+}
+
+function submitNow(){
   var data = collectForm();
   var tpl = CFG.submit.request || '';
   var body = /\\{\\{/.test(tpl) ? interpolate(tpl, data) : (tpl.trim() ? tpl : '');
@@ -858,13 +1061,31 @@ function wire(){
   var form = document.getElementById('pb-form');
   if(form) form.addEventListener('submit', submitForm);
   var okBtn = document.getElementById('pb-modal-ok');
-  if(okBtn) okBtn.addEventListener('click', cerrarModal);
+  if(okBtn) okBtn.addEventListener('click', function(){
+    if(PENDING_SUBMIT){
+      var fn = PENDING_SUBMIT;
+      PENDING_SUBMIT = null;
+      var cancel = document.getElementById('pb-modal-cancel');
+      if(cancel) cancel.style.display = 'none';
+      fn();
+      return;
+    }
+    cerrarModal();
+  });
+  var cancelBtn = document.getElementById('pb-modal-cancel');
+  if(cancelBtn) cancelBtn.addEventListener('click', function(){
+    cerrarModal();
+  });
   var overlay = document.getElementById('pb-modal');
   if(overlay) overlay.addEventListener('mousedown', function(ev){
     if(ev.target === overlay) cerrarModal();
   });
   $$('[data-field]').forEach(function(el){
-    function clearMe(){ clearFieldError(el.getAttribute('data-field')); }
+    function clearMe(){
+      var id = el.getAttribute('data-field');
+      clearFieldError(id);
+      refreshVisibility();
+    }
     el.addEventListener('input', clearMe);
     el.addEventListener('change', clearMe);
   });
@@ -873,7 +1094,7 @@ function wire(){
     if(action === 'submit') return;
     btn.addEventListener('click', function(){
       if(btn.getAttribute('type') === 'submit') return;
-      if(action === 'clean'){ cleanForm(); return; }
+      if(action === 'clean'){ cleanForm(); refreshVisibility(); return; }
       if(action === 'navigation'){
         var u = btn.getAttribute('data-url');
         if(!u){ showStatus('El botón de navegación no tiene URL.', 'error'); return; }
@@ -884,6 +1105,7 @@ function wire(){
   });
   bindAutocomplete();
   runLoad();
+  refreshVisibility();
 }
 
 if (document.readyState === 'loading') {

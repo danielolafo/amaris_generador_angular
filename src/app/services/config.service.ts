@@ -67,6 +67,7 @@ function normalizeField(raw: any): Field {
     loadField: String(f.loadField ?? f.id ?? ''),
     submitField: String(f.submitField ?? f.id ?? ''),
     requiredMessage: String(f.requiredMessage ?? ''),
+    visibleWhen: String(f.visibleWhen ?? ''),
   };
 }
 
@@ -78,6 +79,7 @@ export function normalizeConfig(raw: any): PageConfig {
         title: String(s?.title ?? ''),
         description: String(s?.description ?? ''),
         columns: Math.min(6, Math.max(1, Number(s?.columns) || 1)),
+        visibleWhen: String(s?.visibleWhen ?? ''),
         fields: Array.isArray(s?.fields) ? s.fields.map(normalizeField) : [],
       }))
     : [];
@@ -115,6 +117,13 @@ export function normalizeConfig(raw: any): PageConfig {
       errorMessage: String(c.modal?.errorMessage ?? 'No fue posible enviar los datos.'),
       warningTitle: String(c.modal?.warningTitle ?? 'Atención'),
       warningMessage: String(c.modal?.warningMessage ?? 'Revise los campos marcados.'),
+    },
+    confirm: {
+      enabled: !!c.confirm?.enabled,
+      title: String(c.confirm?.title ?? 'Confirmar envío'),
+      message: String(c.confirm?.message ?? '¿Está seguro de que desea enviar los datos?'),
+      okText: String(c.confirm?.okText || 'Aceptar'),
+      cancelText: String(c.confirm?.cancelText || 'Cancelar'),
     },
     sections,
     buttons,

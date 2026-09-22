@@ -65,15 +65,13 @@
 </header>
 
 <main class="stage">
-  @switch (tab()) {
-    @case ('builder') {
-      <app-builder />
-    }
-    @case ('preview') {
-      <app-preview />
-    }
-    @case ('code') {
-      <app-codeview />
-    }
-  }
+  <div class="tab-pane" [hidden]="tab() !== 'builder'">
+    <app-builder />
+  </div>
+  <div class="tab-pane" [hidden]="tab() !== 'preview'">
+    <app-preview />
+  </div>
+  <div class="tab-pane" [hidden]="tab() !== 'code'">
+    <app-codeview />
+  </div>
 </main>

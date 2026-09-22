@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, effect, input, output, signal } from '@angular/core';
 import { AbstractControl, FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { FIELD_TYPES } from '../../models';
 
@@ -12,6 +12,9 @@ export class FieldEditor {
   readonly field = input.required<FormGroup>();
   readonly index = input.required<number>();
 
+  readonly loadJsonKeys = input<string[]>([]);
+  readonly submitJsonKeys = input<string[]>([]);
+
   readonly delete = output<void>();
   readonly duplicate = output<void>();
   readonly moveUp = output<void>();
@@ -20,6 +23,17 @@ export class FieldEditor {
 
   readonly open = signal(true);
   readonly fieldTypes = FIELD_TYPES;
+
+  private readonly customLoad = signal(false);
+  private readonly customSubmit = signal(false);
+
+  constructor() {
+    effect(() => {
+      this.field();
+      this.customLoad.set(false);
+      this.customSubmit.set(false);
+    });
+  }
 
   f(): FormGroup {
     return this.field();
@@ -35,6 +49,32 @@ export class FieldEditor {
 
   optCtrl(opt: AbstractControl, name: string): FormControl {
     return (opt as FormGroup).get(name) as FormControl;
+  }
+
+  private displayFor(keys: string[], value: string, custom: boolean): string {
+    if (value && keys.includes(value)) return value;
+    if (value || custom) return '__custom__';
+    return '';
+  }
+
+  loadDisplay(): string {
+    return this.displayFor(this.loadJsonKeys(), this.ctrl('loadField').value, this.customLoad());
+  }
+
+  submitDisplay(): string {
+    return this.displayFor(this.submitJsonKeys(), this.ctrl('submitField').value, this.customSubmit());
+  }
+
+  onLoadChange(event: Event) {
+    const v = (event.target as HTMLSelectElement).value;
+    this.customLoad.set(v === '__custom__');
+    this.ctrl('loadField').setValue(v === '__custom__' ? '' : v);
+  }
+
+  onSubmitChange(event: Event) {
+    const v = (event.target as HTMLSelectElement).value;
+    this.customSubmit.set(v === '__custom__');
+    this.ctrl('submitField').setValue(v === '__custom__' ? '' : v);
   }
 
   typeLabel(): string {

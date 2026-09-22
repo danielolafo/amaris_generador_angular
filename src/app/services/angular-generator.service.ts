@@ -65,7 +65,10 @@ export class AngularGeneratorService {
       <div class="pb-modal-icon">{{ modalIcono }}</div>
       <h3>{{ modalTitulo }}</h3>
       <p>{{ modalMsg }}</p>
-      <button type="button" class="pb-btn pb-btn-primary" (click)="cerrarModal()">Aceptar</button>
+      <div class="pb-modal-actions">
+        <button *ngIf="modalConfirm" type="button" class="pb-btn pb-btn-secondary" (click)="cerrarModal()">{{ modalCancelText }}</button>
+        <button type="button" class="pb-btn pb-btn-primary" (click)="okModal()">{{ modalOkText }}</button>
+      </div>
     </div>
   </div>`;
 
@@ -92,8 +95,12 @@ ${modal}
   }
 
   private tSection(section: Section, columns: number): string {
+    const secId = this.key(section.id);
+    const showIf = section.visibleWhen
+      ? ` *ngIf="visSeccion('${secId}')"`
+      : '';
     if (!section.fields || section.fields.length === 0) {
-      return `    <section class="pb-card">
+      return `    <section class="pb-card"${showIf}>
       <h2 class="pb-section-title">${this.esc(section.title)}</h2>
       <p class="pb-empty">Esta sección no tiene campos configurados.</p>
     </section>`;
@@ -102,7 +109,7 @@ ${modal}
       ? `      <p class="pb-section-desc">${this.esc(section.description)}</p>`
       : '      <p class="pb-section-desc"></p>';
     const fields = section.fields.map((f) => this.tField(f)).join('\n');
-    return `    <section class="pb-card">
+    return `    <section class="pb-card"${showIf}>
       <h2 class="pb-section-title">${this.esc(section.title)}</h2>
 ${desc}
       <div class="pb-grid" style="--pb-cols:${Math.max(1, Math.min(6, Number(columns) || 1))}">
@@ -122,19 +129,22 @@ ${fields}
     const readonlyAttr = f.readonly ? ' readonly' : '';
     const help = f.helpText ? `\n      <span class="pb-help">${this.esc(f.helpText)}</span>` : '';
     const err = `\n      <span class="pb-error" [class.show]="errores['${id}']">{{ errores['${id}'] }}</span>`;
+    const showIf = f.visibleWhen
+      ? ` *ngIf="visCampo('${id}')"`
+      : '';
 
     switch (f.type) {
       case 'textarea': {
         const ac = f.autocomplete
           ? ` autocomplete="off" (input)="buscar($event, '${id}')" (keydown)="acKey($event, '${id}')" (blur)="ocultarAc('${id}')"`
           : ` (input)="limpiarErrorCS('${id}')"`;
-        return `      <div class="pb-field">
+        return `      <div class="pb-field"${showIf}>
         <label class="pb-label" for="${cid}">${label}${req}</label>
         <textarea class="pb-textarea" id="${cid}" name="${id}" [(ngModel)]="${key}" rows="4" placeholder="${ph}"${requiredAttr}${readonlyAttr}${ac} (change)="limpiarErrorCS('${id}')"></textarea>${f.autocomplete ? this.acBox(id) : ''}${err}${help}
       </div>`;
       }
       case 'select':
-        return `      <div class="pb-field">
+        return `      <div class="pb-field"${showIf}>
         <label class="pb-label" for="${cid}">${label}${req}</label>
         <select class="pb-select" id="${cid}" name="${id}" [(ngModel)]="${key}"${requiredAttr}${readonlyAttr} (change)="limpiarErrorCS('${id}')">
           <option value="">${ph || 'Seleccione...'}</option>
@@ -142,14 +152,14 @@ ${fields}
         </select>${err}${help}
       </div>`;
       case 'checkbox':
-        return `      <div class="pb-field">
+        return `      <div class="pb-field"${showIf}>
         <label class="pb-check">
           <input type="checkbox" id="${cid}" name="${id}" [(ngModel)]="${key}" (change)="limpiarErrorCS('${id}')">
           <span>${label}${req}</span>
         </label>${err}${help}
       </div>`;
       case 'radio':
-        return `      <div class="pb-field">
+        return `      <div class="pb-field"${showIf}>
         <span class="pb-label">${label}${req}</span>
         <fieldset class="pb-radio-group" id="${cid}">
           <label class="pb-check" *ngFor="let o of opciones['${id}']">
@@ -162,7 +172,7 @@ ${fields}
         const ac = f.autocomplete
           ? ` autocomplete="off" (input)="buscar($event, '${id}')" (keydown)="acKey($event, '${id}')" (blur)="ocultarAc('${id}')"`
           : ` (input)="limpiarErrorCS('${id}')"`;
-        return `      <div class="pb-field">
+        return `      <div class="pb-field"${showIf}>
         <label class="pb-label" for="${cid}">${label}${req}</label>
         <input class="pb-input" id="${cid}" name="${id}" type="${f.type}" [(ngModel)]="${key}" placeholder="${ph}"${requiredAttr}${readonlyAttr}${ac}>
         ${f.autocomplete ? this.acBox(id) : ''}${err}${help}
@@ -225,13 +235,20 @@ ${css}`;
         warningTitle: c.modal?.warningTitle || 'Advertencia',
         warningMessage: c.modal?.warningMessage || 'Revise los campos marcados y vuelva a intentarlo.',
       },
+      confirm: {
+        enabled: !!c.confirm?.enabled,
+        title: c.confirm?.title || 'Confirmar envío',
+        message: c.confirm?.message || '¿Está seguro de que desea enviar los datos?',
+        okText: c.confirm?.okText || 'Aceptar',
+        cancelText: c.confirm?.cancelText || 'Cancelar',
+      },
     });
 
     const modelObj: Record<string, unknown> = {};
     const opcionesObj: Record<string, SelectOption[]> = {};
     const acUrlsObj: Record<string, string> = {};
     const selectJobs: { campo: string; url: string; vf: string; lf: string }[] = [];
-    const fieldsArr: { key: string; load: string; submit: string; type: string; checkbox: boolean; required: boolean; msg: string }[] = [];
+    const fieldsArr: { key: string; load: string; submit: string; type: string; checkbox: boolean; required: boolean; msg: string; vis: string }[] = [];
 
     for (const s of c.sections) {
       for (const f of s.fields || []) {
@@ -244,6 +261,7 @@ ${css}`;
           checkbox: f.type === 'checkbox',
           required: !!f.required,
           msg: f.requiredMessage || '',
+          vis: String(f.visibleWhen || '').trim(),
         });
         if (f.type === 'checkbox') {
           modelObj[key] = ['true', '1', 'si', 'yes', 'checked'].includes(String(f.defaultValue || '').toLowerCase());
@@ -270,6 +288,11 @@ ${css}`;
     const acUrlsJson = JSON.stringify(acUrlsObj);
     const selectJobsJson = JSON.stringify(selectJobs);
     const fmapJson = JSON.stringify(fieldsArr);
+    const secVisJson = JSON.stringify(
+      c.sections
+        .filter((s) => !!s.visibleWhen)
+        .map((s) => ({ id: this.key(s.id), cond: String(s.visibleWhen).trim() })),
+    );
 
     const decorator = inline
       ? `@Component({
@@ -303,6 +326,10 @@ ${css}`;
   modalTitulo = '';
   modalMsg = '';
   modalIcono = '';
+  modalConfirm = false;
+  modalOkText = 'Aceptar';
+  modalCancelText = 'Cancelar';
+  private pendiente: (() => void) | null = null;
   private timer: any = null;
 
   ngOnInit() {
@@ -341,6 +368,7 @@ ${css}`;
     const errs: Record<string, string> = {};
     FMAP.forEach((f: { key: string; required: boolean; msg: string }) => {
       if (!f.required) return;
+      if (this.isOculto(f.key)) return;
       const v = this.model[f.key];
       const ok = v !== undefined && v !== null && String(v).trim() !== '';
       if (!ok) {
@@ -356,9 +384,30 @@ ${css}`;
     const icons: Record<string, string> = { success: '&#10003;', error: '&#10005;', warning: '&#33;' };
     this.modalTipo = tipo || 'info';
     this.modalIcono = icons[tipo] || '!';
-    this.modalTitulo = titulo || '';
-    this.modalMsg = msg || '';
+    this.modalTitulo = titulo ? this.interpolate(titulo) : '';
+    this.modalMsg = msg ? this.interpolate(msg) : '';
+    this.modalConfirm = false;
+    this.modalOkText = 'Aceptar';
     this.modalVisible = true;
+  }
+
+  confirmarEnvio(cb: () => void) {
+    this.pendiente = cb;
+    this.mostrarModal('warning', CFG.confirm.title || 'Confirmar envío', CFG.confirm.message || '¿Está seguro de que desea enviar los datos?');
+    this.modalConfirm = true;
+    this.modalOkText = CFG.confirm.okText || 'Aceptar';
+    this.modalCancelText = CFG.confirm.cancelText || 'Cancelar';
+  }
+
+  okModal() {
+    if (this.pendiente) {
+      const fn = this.pendiente;
+      this.pendiente = null;
+      this.modalConfirm = false;
+      fn();
+      return;
+    }
+    this.cerrarModal();
   }
 
   cerrarModal(ev?: Event) {
@@ -366,6 +415,8 @@ ${css}`;
       const target = ev.target as HTMLElement;
       if (target && ev.target !== ev.currentTarget) return;
     }
+    this.pendiente = null;
+    this.modalConfirm = false;
     this.modalVisible = false;
   }
 
@@ -418,6 +469,7 @@ ${css}`;
   collect(): Record<string, any> {
     const out: Record<string, any> = {};
     FMAP.forEach((f: { key: string; submit: string; checkbox: boolean }) => {
+      if (this.isOculto(f.key)) return;
       let val: any = this.model[f.key];
       if (val === undefined || val === null) return;
       if (val === '') return;
@@ -576,6 +628,14 @@ ${css}`;
       this.notify('error', CFG.modal.errorTitle, CFG.modal.errorMessage || 'No se ha configurado una URL para el envío de datos.');
       return;
     }
+    if (CFG.confirm && CFG.confirm.enabled) {
+      this.confirmarEnvio(() => this.enviarAhora());
+      return;
+    }
+    this.enviarAhora();
+  }
+
+  enviarAhora() {
     const tpl = CFG.submit.request || '';
     const body = tpl.indexOf('{{') >= 0 ? this.interpolate(tpl) : tpl.trim() ? tpl : '';
     const method = (CFG.submit.method || 'POST').toUpperCase();
@@ -615,6 +675,144 @@ ${css}`;
     this.mostrarStatus('', 'info');
   }
 
+  pbFieldVal(id: string): any {
+    const v = this.model[id];
+    if (v === undefined || v === null || v === '') return null;
+    if (typeof v === 'number') return v;
+    const s = String(v);
+    if (s.trim() !== '' && !isNaN(Number(s))) return Number(s);
+    return s;
+  }
+
+  pbTokenize(expr: string): any[] | null {
+    const toks: any[] = [];
+    let i = 0;
+    const n = expr.length;
+    const isDigit = (c: string) => c >= '0' && c <= '9';
+    const isAlpha = (c: string) => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_';
+    while (i < n) {
+      const ch = expr[i];
+      if (ch === ' ' || ch === '\\t' || ch === '\\n' || ch === '\\r') { i++; continue; }
+      if (ch === '(' || ch === ')') { toks.push(ch); i++; continue; }
+      if (ch === "'") {
+        const j = expr.indexOf("'", i + 1);
+        if (j < 0) return null;
+        toks.push(expr.slice(i, j + 1)); i = j + 1; continue;
+      }
+      if (ch === '"') {
+        const j2 = expr.indexOf('"', i + 1);
+        if (j2 < 0) return null;
+        toks.push(expr.slice(i, j2 + 1)); i = j2 + 1; continue;
+      }
+      if (isDigit(ch)) {
+        let j3 = i;
+        while (j3 < n && (isDigit(expr[j3]) || expr[j3] === '.')) j3++;
+        const numText = expr.slice(i, j3);
+        if (!isNaN(Number(numText))) { toks.push(Number(numText)); i = j3; continue; }
+      }
+      const ops2 = ['==', '!=', '<=', '>=', '&&', '||'];
+      let matched = '';
+      for (const op of ops2) {
+        if (expr.slice(i, i + op.length) === op) { matched = op; break; }
+      }
+      if (matched) { toks.push(matched); i += matched.length; continue; }
+      if (ch === '<' || ch === '>' || ch === '!') { toks.push(ch); i++; continue; }
+      if (isAlpha(ch)) {
+        let j4 = i + 1;
+        while (j4 < n && (isAlpha(expr[j4]) || isDigit(expr[j4]) || expr[j4] === '.' || expr[j4] === '-' || expr[j4] === '_')) j4++;
+        toks.push(expr.slice(i, j4)); i = j4; continue;
+      }
+      return null;
+    }
+    return toks;
+  }
+
+  pbCompare(a: any, op: string, b: any): boolean {
+    const same = (a === b) || (String(a) === String(b));
+    if (op === '==') return same;
+    if (op === '!=') return !same;
+    if (typeof a === 'number' && typeof b === 'number') {
+      if (op === '<') return a < b;
+      if (op === '>') return a > b;
+      if (op === '<=') return a <= b;
+      if (op === '>=') return a >= b;
+    }
+    const as = String(a);
+    const bs = String(b);
+    if (op === '<') return as < bs;
+    if (op === '>') return as > bs;
+    if (op === '<=') return as <= bs;
+    if (op === '>=') return as >= bs;
+    return false;
+  }
+
+  evalCond(expr: string): boolean {
+    const toks = this.pbTokenize(expr);
+    if (!toks) return false;
+    let pos = 0;
+    const peek = () => toks[pos];
+    const parseOr = (): any => {
+      let l = parseAnd();
+      while (peek() === '||') { pos++; const r = parseAnd(); l = l || r; }
+      return l;
+    };
+    const parseAnd = (): any => {
+      let l = parseNot();
+      while (peek() === '&&') { pos++; const r = parseNot(); l = l && r; }
+      return l;
+    };
+    const parseNot = (): any => {
+      if (peek() === '!') { pos++; return !parseNot(); }
+      return parseCmp();
+    };
+    const parseCmp = (): any => {
+      const l = parsePrim();
+      const op = peek();
+      if (op === '==' || op === '!=' || op === '<' || op === '>' || op === '<=' || op === '>=') {
+        pos++;
+        const r = parsePrim();
+        return this.pbCompare(l, op, r);
+      }
+      return l;
+    };
+    const parsePrim = (): any => {
+      const t = peek();
+      if (t === undefined) return null;
+      pos++;
+      if (t === '(') {
+        const v = parseOr();
+        if (peek() === ')') pos++;
+        return v;
+      }
+      if (typeof t === 'number') return t;
+      if (typeof t === 'string') {
+        if (t.charAt(0) === "'") return t.slice(1, -1);
+        if (t.charAt(0) === '"') return t.slice(1, -1);
+        return this.pbFieldVal(t);
+      }
+      return null;
+    };
+    return parseOr();
+  }
+
+  isOculto(key: string): boolean {
+    const f = FMAP.find((x: { key: string; vis: string }) => x.key === key);
+    if (f && f.vis) {
+      try { return !this.evalCond(f.vis); } catch { return false; }
+    }
+    return false;
+  }
+
+  visCampo(id: string): boolean {
+    return !this.isOculto(id);
+  }
+
+  visSeccion(id: string): boolean {
+    const s = SECVIS.find((x: { id: string; cond: string }) => x.id === id);
+    if (!s || !s.cond) return true;
+    try { return this.evalCond(s.cond); } catch { return false; }
+  }
+
   navegar(url: string, nueva: boolean) {
     if (!url) {
       this.mostrarStatus('El botón de navegación no tiene URL.', 'error');
@@ -632,6 +830,8 @@ import { NgFor, NgIf } from '@angular/common';
 const CFG = ${cfg};
 
 const FMAP = ${fmapJson};
+
+const SECVIS = ${secVisJson};
 
 ${decorator}
 ${classBody}

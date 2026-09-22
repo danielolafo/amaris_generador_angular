@@ -15,6 +15,24 @@ import { ConfigService } from '../../services/config.service';
 import { EndpointEditor } from '../endpoint-editor/endpoint-editor';
 import { FieldEditor } from '../field-editor/field-editor';
 
+export function extractJsonKeys(tpl: string | null | undefined): string[] {
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  const add = (k: string) => {
+    if (k && !seen.has(k)) {
+      seen.add(k);
+      keys.push(k);
+    }
+  };
+  const s = String(tpl ?? '');
+  const re = /"([A-Za-z0-9_\-]+)"\s*:/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s))) add(m[1]);
+  const reTpl = /{{\s*([A-Za-z0-9_.\-]+)\s*}}/g;
+  while ((m = reTpl.exec(s))) add(m[1]);
+  return keys;
+}
+
 @Component({
   selector: 'app-builder',
   imports: [ReactiveFormsModule, EndpointEditor, FieldEditor],
@@ -36,14 +54,7 @@ export class Builder implements OnInit {
   private readonly syncEnabled = signal(true);
   private lastPushed: any = null;
 
-  ngOnInit() {
-    this.form = this.buildForm(this.configSvc.getValue());
-    this.lastPushed = this.configSvc.getValue();
-    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
-      if (!this.syncEnabled()) return;
-      this.configSvc.setConfig(this.buildConfig(this.form.getRawValue()));
-      this.lastPushed = this.configSvc.config();
-    });
+  constructor() {
     effect(() => {
       const c = this.configSvc.config();
       if (!this.form || !this.lastPushed || c === this.lastPushed) return;
@@ -52,6 +63,16 @@ export class Builder implements OnInit {
       this.selectedSection.set(0);
       this.syncEnabled.set(true);
       this.lastPushed = c;
+    });
+  }
+
+  ngOnInit() {
+    this.form = this.buildForm(this.configSvc.getValue());
+    this.lastPushed = this.configSvc.getValue();
+    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (!this.syncEnabled()) return;
+      this.configSvc.setConfig(this.buildConfig(this.form.getRawValue()));
+      this.lastPushed = this.configSvc.config();
     });
   }
 
@@ -83,6 +104,13 @@ export class Builder implements OnInit {
         warningTitle: new FormControl(config.modal?.warningTitle || 'Atención'),
         warningMessage: new FormControl(config.modal?.warningMessage || 'Revise los campos marcados.'),
       }),
+      confirm: new FormGroup({
+        enabled: new FormControl(!!config.confirm?.enabled),
+        title: new FormControl(config.confirm?.title || 'Confirmar envío'),
+        message: new FormControl(config.confirm?.message || '¿Está seguro de que desea enviar los datos?'),
+        okText: new FormControl(config.confirm?.okText || 'Aceptar'),
+        cancelText: new FormControl(config.confirm?.cancelText || 'Cancelar'),
+      }),
       autocompleteUrl: new FormControl(config.autocompleteUrl || ''),
       autocompleteMinChars: new FormControl(config.autocompleteMinChars || 2),
       load: this.endpointGroup(config.load),
@@ -107,6 +135,7 @@ export class Builder implements OnInit {
       title: new FormControl(section?.title || ''),
       description: new FormControl(section?.description || ''),
       columns: new FormControl(section?.columns || 1),
+      visibleWhen: new FormControl(section?.visibleWhen || ''),
       fields: new FormArray((section?.fields || []).map((f) => this.fieldGroup(f))),
     });
   }
@@ -130,6 +159,7 @@ export class Builder implements OnInit {
       loadField: new FormControl(field?.loadField || field?.id || ''),
       submitField: new FormControl(field?.submitField || field?.id || ''),
       requiredMessage: new FormControl(field?.requiredMessage || ''),
+      visibleWhen: new FormControl(field?.visibleWhen || ''),
       options: new FormArray(
         (field?.options || []).map((o: any) => this.optionGroup(o)),
       ),
@@ -198,6 +228,14 @@ export class Builder implements OnInit {
     return ids;
   }
 
+  jsonKeysLoad(): string[] {
+    return extractJsonKeys(this.form?.get('load')?.get('responseJson')?.value);
+  }
+
+  jsonKeysSubmit(): string[] {
+    return extractJsonKeys(this.form?.get('submit')?.get('requestJson')?.value);
+  }
+
   layoutColumns(): number {
     const layout = this.form.get('layout')?.value;
     if (layout === 'vertical') return 1;
@@ -242,6 +280,7 @@ export class Builder implements OnInit {
         title: `Sección ${this.sectionsArr().length + 1}`,
         description: '',
         columns: this.layoutColumns(),
+        visibleWhen: '',
         fields: [],
       }),
     );
@@ -263,6 +302,56 @@ export class Builder implements OnInit {
     arr.removeAt(i);
     arr.insert(j, cur);
     this.selectedSection.set(j);
+  }
+
+  protected draggingSection = signal(-1);
+
+  onSectionDragStart(i: number) {
+    this.draggingSection.set(i);
+  }
+
+  onSectionDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'move';
+  }
+
+  onSectionDrop(target: number) {
+    const from = this.draggingSection();
+    const arr = this.sectionsArr();
+    if (from < 0 || from === target || from >= arr.length) {
+      this.draggingSection.set(-1);
+      return;
+    }
+    const cur = arr.at(from);
+    arr.removeAt(from);
+    const adjusted = target > from ? target - 1 : target;
+    arr.insert(Math.max(0, Math.min(arr.length, adjusted)), cur);
+    this.selectedSection.set(adjusted);
+    this.draggingSection.set(-1);
+  }
+
+  onSectionDragEnd() {
+    this.draggingSection.set(-1);
+  }
+
+  confirmGroup(): FormGroup {
+    return this.form.get('confirm') as FormGroup;
+  }
+
+  insertToken(target: HTMLInputElement | HTMLTextAreaElement, token: string) {
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? target.value.length;
+    const value = target.value;
+    target.value = value.slice(0, start) + token + value.slice(end);
+    target.focus();
+    const cursor = start + token.length;
+    target.setSelectionRange(cursor, cursor);
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  insertFieldToken(target: HTMLInputElement | HTMLTextAreaElement, id: string) {
+    if (!id) return;
+    this.insertToken(target, '{{' + id + '}}');
   }
 
   sectionColumns(i: number): number {
@@ -386,6 +475,13 @@ export class Builder implements OnInit {
         warningTitle: raw.modal?.warningTitle || 'Atención',
         warningMessage: raw.modal?.warningMessage || 'Revise los campos marcados.',
       },
+      confirm: {
+        enabled: !!raw.confirm?.enabled,
+        title: raw.confirm?.title || 'Confirmar envío',
+        message: raw.confirm?.message || '¿Está seguro de que desea enviar los datos?',
+        okText: raw.confirm?.okText || 'Aceptar',
+        cancelText: raw.confirm?.cancelText || 'Cancelar',
+      },
       autocompleteUrl: raw.autocompleteUrl,
       autocompleteMinChars: Number(raw.autocompleteMinChars) || 2,
       load: {
@@ -405,6 +501,7 @@ export class Builder implements OnInit {
         title: s.title,
         description: s.description,
         columns: Number(s.columns) || 1,
+        visibleWhen: s.visibleWhen || '',
         fields: (s.fields || []).map((f: any) => ({
           id: f.id,
           label: f.label,
@@ -423,6 +520,7 @@ export class Builder implements OnInit {
           loadField: f.loadField || f.id || '',
           submitField: f.submitField || f.id || '',
           requiredMessage: f.requiredMessage || '',
+          visibleWhen: f.visibleWhen || '',
           options: (f.options || []).map((o: any) => ({ value: o.value, label: o.label })),
         })),
       })),

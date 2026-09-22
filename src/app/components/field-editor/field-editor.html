@@ -55,13 +55,31 @@
       <div class="fe-grid">
         <div class="fe-cell">
           <label class="fe-label">Campo en el JSON de carga</label>
-          <input class="fe-input" formControlName="loadField" placeholder="clave del JSON de respuesta" />
-          <p class="fe-help">La página lee este valor al cargar datos (respuesta del servicio de carga).</p>
+          <select class="fe-input" [value]="loadDisplay()" (change)="onLoadChange($event)">
+            <option value="">— Usar el id del campo —</option>
+            @for (k of loadJsonKeys(); track k) {
+              <option [value]="k">{{ k }}</option>
+            }
+            <option value="__custom__">✎ Escribir clave manualmente…</option>
+          </select>
+          @if (loadDisplay() === '__custom__') {
+            <input class="fe-input" formControlName="loadField" placeholder="clave del JSON de respuesta" />
+          }
+          <p class="fe-help">El campo de la página se llena con esta clave de la respuesta del servicio de carga.</p>
         </div>
         <div class="fe-cell">
           <label class="fe-label">Campo en el JSON de envío</label>
-          <input class="fe-input" formControlName="submitField" placeholder="clave del JSON a enviar" />
-          <p class="fe-help">Con esta clave se envía el valor (plantilla <code>{{'{{'}}clave{{'}}'}}</code> o body).</p>
+          <select class="fe-input" [value]="submitDisplay()" (change)="onSubmitChange($event)">
+            <option value="">— Usar el id del campo —</option>
+            @for (k of submitJsonKeys(); track k) {
+              <option [value]="k">{{ k }}</option>
+            }
+            <option value="__custom__">✎ Escribir clave manualmente…</option>
+          </select>
+          @if (submitDisplay() === '__custom__') {
+            <input class="fe-input" formControlName="submitField" placeholder="clave del JSON a enviar" />
+          }
+          <p class="fe-help">Con esta clave se envía el valor en el JSON de envío (plantilla <code>{{ '{{' }}clave{{ '}}' }}</code> o body).</p>
         </div>
       </div>
 
@@ -71,6 +89,15 @@
           <input class="fe-input" formControlName="requiredMessage" placeholder="Este campo es obligatorio." />
         </div>
       }
+
+      <div class="fe-cell">
+        <label class="fe-label">Mostrar solo si (condición)</label>
+        <input class="fe-input" formControlName="visibleWhen" placeholder="p. ej. otro_campo == 'valor'" />
+        <p class="fe-help">
+          Condición opcional. El campo solo se muestra si se cumple. Use el <em>id</em> de otros campos con
+          operadores como <code>==</code>, <code>!=</code>, <code>&amp;&amp;</code>, <code>||</code>.
+        </p>
+      </div>
 
       @if (ctrl('type').value === 'select' || ctrl('type').value === 'radio') {
         <div class="fe-options">
