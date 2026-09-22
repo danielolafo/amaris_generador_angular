@@ -288,6 +288,56 @@
       </section>
 
       <section class="panel">
+        <h3 class="panel-title">Organizar elementos</h3>
+        <p class="p-note">
+          Arrastre para cambiar el orden de las secciones y de los campos dentro de cada sección.
+          También puede mover un campo de una sección a otra.
+        </p>
+        @if (dragItem()) {
+          <p class="p-note org-drag-msg">Suelte el elemento para colocarlo en su nueva posición.</p>
+        }
+        <div class="org-list">
+          @for (section of sectionsArr().controls; track $index; let i = $index) {
+            <div
+              class="org-sec"
+              [class.org-dragging]="isOrgSectionDragging(i)"
+              draggable="true"
+              (dragstart)="onOrgSectionDragStart(i)"
+              (dragend)="onOrgDragEnd()"
+              (dragover)="onOrgDragOver($event)"
+              (drop)="onOrgSectionDrop(i)">
+              <div class="org-sec-head">
+                <span class="org-grip" title="Arrastrar sección">⠿</span>
+                <span class="org-sec-title">{{ section.get('title')?.value || 'Sección ' + (i + 1) }}</span>
+                <span class="org-sec-count">{{ fieldsCount(i) }} campo(s)</span>
+              </div>
+              <div class="org-fields">
+                @for (field of fieldsArr(i).controls; track $index; let fi = $index) {
+                  <div
+                    class="org-field"
+                    [class.org-dragging]="isOrgFieldDragging(i, fi)"
+                    draggable="true"
+                    (dragstart)="onOrgFieldDragStart($event, i, fi)"
+                    (dragend)="onOrgDragEnd()"
+                    (dragover)="onOrgDragOver($event)"
+                    (drop)="onOrgFieldDrop(i, fi)">
+                    <span class="org-grip" title="Arrastrar campo">⠿</span>
+                    <span class="org-field-label">{{ field.get('label')?.value || field.get('id')?.value || 'Campo ' + (fi + 1) }}</span>
+                    <span class="org-field-type">{{ fieldTypeLabel(field) }}</span>
+                  </div>
+                }
+                <div class="org-field-end" (dragover)="onOrgDragOver($event)" (drop)="onOrgFieldDrop(i, -1)">
+                  <span class="org-empty">{{ fieldsCount(i) ? 'Soltar aquí para ir al final' : 'Sin campos — soltar aquí' }}</span>
+                </div>
+              </div>
+            </div>
+          } @empty {
+            <p class="p-note">No hay secciones todavía. Cree una en el centro o con "+ Nueva sección".</p>
+          }
+        </div>
+      </section>
+
+      <section class="panel">
         <h3 class="panel-title">Botones de la página</h3>
         <div class="btn-list">
           @for (btn of buttonsArr().controls; track $index; let i = $index) {

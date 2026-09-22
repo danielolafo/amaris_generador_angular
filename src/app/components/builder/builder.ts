@@ -1,5 +1,5 @@
 import { Component, DestroyRef, effect, inject, OnInit, signal } from '@angular/core';
-import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   BUTTON_ACTIONS,
@@ -332,6 +332,81 @@ export class Builder implements OnInit {
 
   onSectionDragEnd() {
     this.draggingSection.set(-1);
+  }
+
+  // ---------- organizer (right sidebar) ----------
+
+  protected dragItem = signal<
+    { kind: 'section'; src: number } | { kind: 'field'; srcSec: number; srcIdx: number } | null
+  >(null);
+
+  onOrgSectionDragStart(i: number) {
+    this.dragItem.set({ kind: 'section', src: i });
+  }
+
+  onOrgFieldDragStart(event: Event, si: number, fi: number) {
+    event.stopPropagation();
+    this.dragItem.set({ kind: 'field', srcSec: si, srcIdx: fi });
+  }
+
+  onOrgDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'move';
+  }
+
+  onOrgDragEnd() {
+    this.dragItem.set(null);
+  }
+
+  onOrgSectionDrop(target: number) {
+    const d = this.dragItem();
+    if (!d) return;
+    if (d.kind === 'section' && d.src !== target) {
+      const arr = this.sectionsArr();
+      const cur = arr.at(d.src);
+      arr.removeAt(d.src);
+      const idx = target > d.src ? target - 1 : target;
+      arr.insert(Math.max(0, Math.min(arr.length, idx)), cur);
+      this.selectedSection.set(idx);
+    }
+    this.dragItem.set(null);
+  }
+
+  onOrgFieldDrop(targetSec: number, targetIdx: number) {
+    const d = this.dragItem();
+    if (!d) return;
+    if (d.kind === 'field') {
+      const srcArr = this.fieldsArr(d.srcSec);
+      const cur = srcArr.at(d.srcIdx);
+      const same = d.srcSec === targetSec;
+      srcArr.removeAt(d.srcIdx);
+      const tgtArr = same ? srcArr : this.fieldsArr(targetSec);
+      let idx = targetIdx;
+      if (same) idx = targetIdx < 0 ? tgtArr.length : targetIdx > d.srcIdx ? targetIdx - 1 : targetIdx;
+      else idx = targetIdx < 0 ? tgtArr.length : targetIdx;
+      idx = Math.max(0, Math.min(tgtArr.length, idx));
+      tgtArr.insert(idx, cur);
+    }
+    this.dragItem.set(null);
+  }
+
+  fieldsCount(i: number): number {
+    return this.fieldsArr(i).length;
+  }
+
+  isOrgSectionDragging(i: number): boolean {
+    const d = this.dragItem();
+    return !!d && d.kind === 'section' && d.src === i;
+  }
+
+  isOrgFieldDragging(si: number, fi: number): boolean {
+    const d = this.dragItem();
+    return !!d && d.kind === 'field' && d.srcSec === si && d.srcIdx === fi;
+  }
+
+  fieldTypeLabel(field: AbstractControl): string {
+    const v = field.get('type')?.value;
+    return this.fieldTypes.find((t) => t.value === v)?.label || v || '';
   }
 
   confirmGroup(): FormGroup {
