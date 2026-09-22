@@ -117,13 +117,38 @@
               </div>
               <div class="fe-cell">
                 <label class="fe-label">Clave del valor</label>
-                <input class="fe-input" formControlName="optionsValueField" placeholder="codigo" />
+                <select class="fe-input" [value]="optionKeysDisplay('value')" (change)="onOptionKeyChange($event, 'value')">
+                  <option value="">— Elegir campo —</option>
+                  @for (k of optionKeys(); track k) {
+                    <option [value]="k">{{ k }}</option>
+                  }
+                  <option value="__custom__">✎ Escribir clave manualmente…</option>
+                </select>
+                @if (optionKeysDisplay('value') === '__custom__') {
+                  <input class="fe-input" formControlName="optionsValueField" placeholder="codigo" />
+                }
               </div>
               <div class="fe-cell">
                 <label class="fe-label">Clave del texto</label>
-                <input class="fe-input" formControlName="optionsLabelField" placeholder="nombre" />
+                <select class="fe-input" [value]="optionKeysDisplay('label')" (change)="onOptionKeyChange($event, 'label')">
+                  <option value="">— Elegir campo —</option>
+                  @for (k of optionKeys(); track k) {
+                    <option [value]="k">{{ k }}</option>
+                  }
+                  <option value="__custom__">✎ Escribir clave manualmente…</option>
+                </select>
+                @if (optionKeysDisplay('label') === '__custom__') {
+                  <input class="fe-input" formControlName="optionsLabelField" placeholder="nombre" />
+                }
               </div>
             </div>
+            @if (optionKeysLoading()) {
+              <p class="fe-help">Obteniendo campos de la URL…</p>
+            } @else if (optionKeysError()) {
+              <p class="fe-help">{{ optionKeysError() }}</p>
+            } @else if (optionKeys().length) {
+              <p class="fe-help">{{ optionKeys().length }} campo(s) disponibles: {{ optionKeys().join(', ') }}</p>
+            }
             <p class="fe-help">
               La página pedirá esta URL al cargar y llenará las opciones. Responde un arreglo o
               <code>data</code> / <code>items</code> / <code>results</code>.
