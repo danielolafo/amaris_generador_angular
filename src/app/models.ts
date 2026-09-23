@@ -10,7 +10,8 @@ export type FieldType =
   | 'textarea'
   | 'select'
   | 'checkbox'
-  | 'radio';
+  | 'radio'
+  | 'table';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT';
 
@@ -22,9 +23,18 @@ export type ButtonAction = 'submit' | 'clean' | 'navigation';
 
 export type ButtonStyle = 'primary' | 'secondary' | 'success' | 'danger';
 
+export type SelectionMode = 'single' | 'multiple';
+
 export interface SelectOption {
   value: string;
   label: string;
+}
+
+export interface TableColumn {
+  field: string;
+  label: string;
+  sortable: boolean;
+  filterable: boolean;
 }
 
 export interface JsonEndpoint {
@@ -55,6 +65,11 @@ export interface Field {
   multiple: boolean;
   optionsColumns: number;
   optionsFromUrl: boolean;
+  tableUrl: string;
+  tableColumns: TableColumn[];
+  tableSelectable: boolean;
+  tableSelectionMode: SelectionMode;
+  tablePageSize: number;
   optionsUrl: string;
   optionsValueField: string;
   optionsLabelField: string;
@@ -127,6 +142,7 @@ export const FIELD_TYPES: { value: FieldType; label: string; icon: string }[] = 
   { value: 'select', label: 'SelectBox', icon: '▾' },
   { value: 'checkbox', label: 'Casilla', icon: '☑' },
   { value: 'radio', label: 'Radio', icon: '◉' },
+  { value: 'table', label: 'Tabla de datos', icon: '▦' },
 ];
 
 export const LAYOUT_OPTIONS: { value: PageLayout; label: string; hint: string }[] = [
@@ -195,6 +211,11 @@ export function defaultConfig(): PageConfig {
     multiple: false,
     optionsColumns: 1,
     optionsFromUrl: false,
+    tableUrl: '',
+    tableColumns: [],
+    tableSelectable: false,
+    tableSelectionMode: 'multiple',
+    tablePageSize: 10,
     optionsUrl: '',
     optionsValueField: 'value',
     optionsLabelField: 'label',
@@ -222,6 +243,11 @@ export function defaultConfig(): PageConfig {
     multiple: false,
     optionsColumns: 1,
     optionsFromUrl: false,
+    tableUrl: '',
+    tableColumns: [],
+    tableSelectable: false,
+    tableSelectionMode: 'multiple',
+    tablePageSize: 10,
     optionsUrl: 'https://example.com/api/ciudades',
     optionsValueField: 'codigo',
     optionsLabelField: 'nombre',
@@ -245,6 +271,11 @@ export function defaultConfig(): PageConfig {
     multiple: false,
     optionsColumns: 1,
     optionsFromUrl: false,
+    tableUrl: '',
+    tableColumns: [],
+    tableSelectable: false,
+    tableSelectionMode: 'multiple',
+    tablePageSize: 10,
     optionsUrl: '',
     optionsValueField: 'value',
     optionsLabelField: 'label',
@@ -268,6 +299,11 @@ export function defaultConfig(): PageConfig {
     multiple: false,
     optionsColumns: 1,
     optionsFromUrl: false,
+    tableUrl: '',
+    tableColumns: [],
+    tableSelectable: false,
+    tableSelectionMode: 'multiple',
+    tablePageSize: 10,
     optionsUrl: '',
     optionsValueField: 'value',
     optionsLabelField: 'label',
@@ -294,6 +330,11 @@ export function defaultConfig(): PageConfig {
     multiple: false,
     optionsColumns: 1,
     optionsFromUrl: false,
+    tableUrl: '',
+    tableColumns: [],
+    tableSelectable: false,
+    tableSelectionMode: 'multiple',
+    tablePageSize: 10,
     optionsUrl: '',
     optionsValueField: 'value',
     optionsLabelField: 'label',

@@ -136,6 +136,99 @@
         </div>
       }
 
+      @if (ctrl('type').value === 'table') {
+        <div class="fe-tbl">
+          <div class="fe-cell">
+            <label class="fe-label">URL de datos de la tabla</label>
+            <div class="fe-tbl-url-row">
+              <input class="fe-input" formControlName="tableUrl" placeholder="https://api.ejemplo.com/registros" />
+              <button type="button" class="fe-add" (click)="detectTableFields()">
+                {{ tableDetectLoading() ? 'Detectando…' : 'Detectar campos' }}
+              </button>
+            </div>
+            @if (tableDetectError()) {
+              <p class="fe-help">{{ tableDetectError() }}</p>
+            }
+            <p class="fe-help">La página pedirá esta URL al cargar. Responde un arreglo o <code>data</code>/<code>items</code>/<code>results</code>.</p>
+          </div>
+
+          @if (detectedTableFields().length) {
+            <div class="fe-cell">
+              <span class="fe-label">Columnas incluidas</span>
+              <div class="fe-tbl-cols">
+                @for (f of detectedTableFields(); track f.field) {
+                  <div class="fe-tbl-col">
+                    <label class="fe-chip fe-tbl-include">
+                      <input
+                        type="checkbox"
+                        [checked]="tblColIncluded(f.field)"
+                        (change)="tblToggleCol(f.field, f.label, $any($event.target).checked)" />
+                      <span>{{ f.field }}</span>
+                    </label>
+                    @if (tblColIncluded(f.field)) {
+                      <input
+                        class="fe-input fe-tbl-label"
+                        [formControl]="$any(tblColGroup(f.field)).get('label')"
+                        placeholder="Texto a mostrar" />
+                      <label class="fe-chip fe-tbl-opt">
+                        <input type="checkbox" [formControl]="$any(tblColGroup(f.field)).get('sortable')" />
+                        <span>Ordenar</span>
+                      </label>
+                      <label class="fe-chip fe-tbl-opt">
+                        <input type="checkbox" [formControl]="$any(tblColGroup(f.field)).get('filterable')" />
+                        <span>Filtrar</span>
+                      </label>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          } @else if (!tableDetectLoading()) {
+            <p class="fe-help">Use "Detectar campos" para listar las columnas disponibles de la URL.</p>
+          }
+
+          @if (tableColumnsArr().length && !detectedTableFields().length) {
+            <div class="fe-cell">
+              <span class="fe-label">Columnas configuradas</span>
+              <div class="fe-tbl-cols">
+                @for (group of tableColumnsArr().controls; track $index) {
+                  <div class="fe-tbl-col">
+                    <input
+                      class="fe-input fe-tbl-label"
+                      [formControl]="$any(group).get('label')"
+                      placeholder="Texto a mostrar" />
+                    <input class="fe-input" [formControl]="$any(group).get('field')" readonly />
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <div class="fe-grid">
+            <div class="fe-cell">
+              <label class="fe-chip">
+                <input type="checkbox" formControlName="tableSelectable" />
+                <span>Permitir selección de registros</span>
+              </label>
+            </div>
+            @if (ctrl('tableSelectable').value) {
+              <div class="fe-cell">
+                <label class="fe-label">Modo de selección</label>
+                <select class="fe-input" formControlName="tableSelectionMode">
+                  <option value="multiple">Múltiple (casillas)</option>
+                  <option value="single">Único (radio)</option>
+                </select>
+                <p class="fe-help">Los registros seleccionados se envían con el formulario bajo la clave del campo.</p>
+              </div>
+            }
+            <div class="fe-cell">
+              <label class="fe-label">Registros por página</label>
+              <input class="fe-input" type="number" min="1" max="100" formControlName="tablePageSize" />
+            </div>
+          </div>
+        </div>
+      }
+
       @if (ctrl('type').value === 'select' || ctrl('type').value === 'radio' || (ctrl('type').value === 'checkbox' && ctrl('multiple').value)) {
         <div class="fe-options">
           <div class="fe-options-head">

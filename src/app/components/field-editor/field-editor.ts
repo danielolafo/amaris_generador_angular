@@ -74,6 +74,10 @@ export class FieldEditor implements OnDestroy {
   private readonly customLabelKey = signal(false);
   private fetchTimer: ReturnType<typeof setTimeout> | null = null;
 
+  readonly detectedTableFields = signal<{ field: string; label: string }[]>([]);
+  readonly tableDetectLoading = signal(false);
+  readonly tableDetectError = signal('');
+
   constructor() {
     effect(() => {
       const g = this.field();
@@ -103,6 +107,67 @@ export class FieldEditor implements OnDestroy {
 
   optionsArr(): FormArray {
     return this.f().get('options') as FormArray;
+  }
+
+  tableColumnsArr(): FormArray {
+    return this.f().get('tableColumns') as FormArray;
+  }
+
+  tblColGroup(field: string): FormGroup | null {
+    for (const c of this.tableColumnsArr().controls) {
+      if ((c as FormGroup).get('field')?.value === field) return c as FormGroup;
+    }
+    return null;
+  }
+
+  tblColIncluded(field: string): boolean {
+    return !!this.tblColGroup(field);
+  }
+
+  tblToggleCol(field: string, label: string, on: boolean) {
+    if (on) {
+      if (!this.tblColGroup(field)) {
+        this.tableColumnsArr().push(
+          new FormGroup({
+            field: new FormControl(field),
+            label: new FormControl(label || field),
+            sortable: new FormControl(true),
+            filterable: new FormControl(false),
+          }),
+        );
+      }
+    } else {
+      const idx = this.tableColumnsArr().controls.findIndex(
+        (c) => (c as FormGroup).get('field')?.value === field,
+      );
+      if (idx >= 0) this.tableColumnsArr().removeAt(idx);
+    }
+  }
+
+  async detectTableFields() {
+    const url = String(this.ctrl('tableUrl').value || '').trim();
+    if (!url) {
+      this.tableDetectError.set('Escriba primero la URL de datos.');
+      return;
+    }
+    this.tableDetectLoading.set(true);
+    this.tableDetectError.set('');
+    this.detectedTableFields.set([]);
+    try {
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const keys = responseItemKeys(tryParseJson(await res.text()));
+      const fields = keys.map((k: string) => {
+        const cur = this.tblColGroup(k);
+        return { field: k, label: cur ? cur.get('label')?.value || k : k };
+      });
+      this.detectedTableFields.set(fields);
+      if (!fields.length) this.tableDetectError.set('El JSON no tiene campos detectables.');
+    } catch {
+      this.tableDetectError.set('No se pudieron leer los campos. Verifique la URL o los permisos CORS.');
+    } finally {
+      this.tableDetectLoading.set(false);
+    }
   }
 
   ctrl(name: string): FormControl {

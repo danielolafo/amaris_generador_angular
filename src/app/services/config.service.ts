@@ -61,6 +61,18 @@ function normalizeField(raw: any): Field {
     multiple: !!f.multiple,
     optionsColumns: Math.max(1, Math.min(6, Number(f.optionsColumns) || 1)),
     optionsFromUrl: !!f.optionsFromUrl,
+    tableUrl: String(f.tableUrl ?? ''),
+    tableColumns: Array.isArray(f.tableColumns)
+      ? f.tableColumns.map((c: any) => ({
+          field: String(c?.field ?? ''),
+          label: String(c?.label ?? ''),
+          sortable: !!c?.sortable,
+          filterable: !!c?.filterable,
+        }))
+      : [],
+    tableSelectable: !!f.tableSelectable,
+    tableSelectionMode: f.tableSelectionMode === 'single' ? 'single' : 'multiple',
+    tablePageSize: Math.max(1, Math.min(100, Number(f.tablePageSize) || 10)),
     optionsUrl: String(f.optionsUrl ?? ''),
     optionsValueField: String(f.optionsValueField || 'value'),
     optionsLabelField: String(f.optionsLabelField || 'label'),

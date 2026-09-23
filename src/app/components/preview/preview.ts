@@ -21,15 +21,21 @@ export class Preview {
     effect(() => {
       const frame = this.frame();
       if (frame) {
-        frame.nativeElement.srcdoc = this.html();
+        const doc = frame.nativeElement.contentDocument;
+        if (doc) {
+          doc.open();
+          doc.write(this.html());
+          doc.close();
+        }
       }
     });
   }
 
   openInNewTab() {
-    const blob = new Blob([this.html()], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 20000);
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.open();
+    win.document.write(this.html());
+    win.document.close();
   }
 }

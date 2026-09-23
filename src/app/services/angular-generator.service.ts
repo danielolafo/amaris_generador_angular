@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { HtmlGeneratorService } from './html-generator.service';
-import type { Field, PageConfig, PageButton, Section, SelectOption } from '../models';
+import type { Field, PageConfig, PageButton, Section, SelectOption, TableColumn } from '../models';
 
 export interface AngularOutput {
   selector: string;
@@ -181,6 +181,67 @@ ${fields}
           </label>
         </fieldset>${err}${help}
       </div>`;
+      case 'table': {
+        const tcols = (f.tableColumns || []).filter((c) => c.field);
+        const hasSel = !!f.tableSelectable;
+        const anyFilter = tcols.some((c) => c.filterable);
+        const colCtl = `tabla['${id}'].columns`;
+        const selHead = hasSel
+          ? `          <th class="pb-tbl-sel"><input type="checkbox" [checked]="todosSeleccionados('${id}')" (change)="alternarTodos('${id}', $event)" aria-label="Seleccionar todos"></th>\n`
+          : '';
+        const headCells = tcols
+          .map(
+            (c) => `          <th class="pb-tbl-th" [class.pb-tbl-sort]="c.sortable" [class.sorted-asc]="orden('${id}') === c.field && dir('${id}') > 0" [class.sorted-desc]="orden('${id}') === c.field && dir('${id}') < 0" *ngFor="let c of ${colCtl}" (click)="ordenarTabla('${id}', c)"><span class="pb-tbl-caption">{{ c.label }}<span class="pb-tbl-arrow">{{ orden('${id}') === c.field ? (dir('${id}') > 0 ? '▲' : '▼') : '' }}</span></span></th>\n`,
+          )
+          .join('');
+        const filterSelCell = hasSel ? `          <th class="pb-tbl-sel"></th>\n` : '';
+        const filterCells = tcols
+          .map(
+            (c) =>
+              c.filterable
+                ? `          <th><input type="text" class="pb-input pb-tbl-filter" [(ngModel)]="filtrosT['${id}'][c.field]" (ngModelChange)="filtrarTabla('${id}')" placeholder="Filtrar…"></th>\n`
+                : `          <th></th>\n`,
+          )
+          .join('');
+        const filterRow = anyFilter
+          ? `\n          <tr class="pb-tbl-filters">${filterSelCell}${filterCells}
+          </tr>`
+          : '';
+        const columns = tcols.length
+          ? tcols
+              .map(
+                (c) => `        <td *ngFor="let c of ${colCtl}">{{ valorCelda(r, c.field) }}</td>\n`,
+              )
+              .join('')
+          : '';
+        const selCell = hasSel
+          ? `        <td class="pb-tbl-sel">
+          <input *ngIf="tabla['${id}'].mode === 'multiple'" type="checkbox" [checked]="seleccionContiene('${id}', r)" (change)="alternarUno('${id}', r, $event)">
+          <input *ngIf="tabla['${id}'].mode === 'single'" type="radio" name="tbl_${id}" [checked]="seleccionContiene('${id}', r)" (change)="alternarUno('${id}', r, $event)">
+        </td>\n`
+          : '';
+        return `      <div class="pb-field"${showIf}>
+        <span class="pb-label">${label}${req}</span>
+        <div class="pb-table">
+          <table class="pb-table-el">
+            <thead>
+            <tr>${selHead}${headCells}
+            </tr>${filterRow}
+            </thead>
+            <tbody>
+          <tr *ngFor="let r of filasVistas('${id}')">${selCell}${columns}
+          </tr>
+          <tr *ngIf="!filasVistas('${id}').length"><td class="pb-empty" [attr.colspan]="tabla['${id}'].columns.length + (tabla['${id}'].selectable ? 1 : 0)">{{ mensajeTablaVacia('${id}') }}</td></tr>
+            </tbody>
+          </table>
+          <div class="pb-table-foot">
+            <button type="button" class="pb-btn pb-btn-secondary" (click)="paginaMenos('${id}')">‹ Anterior</button>
+            <span class="pb-table-info">{{ infoTabla('${id}') }}</span>
+            <button type="button" class="pb-btn pb-btn-secondary" (click)="paginaMas('${id}')">Siguiente ›</button>
+          </div>
+        </div>${err}${help}
+      </div>`;
+      }
       default: {
         const ac = f.autocomplete
           ? ` autocomplete="off" (input)="buscar($event, '${id}')" (keydown)="acKey($event, '${id}')" (blur)="ocultarAc('${id}')"`
@@ -311,6 +372,26 @@ ${css}`;
         .filter((s) => !!s.visibleWhen)
         .map((s) => ({ id: this.key(s.id), cond: String(s.visibleWhen).trim() })),
     );
+    const tablesArr = c.sections
+      .flatMap((s) => s.fields || [])
+      .filter((f: Field) => f.type === 'table')
+      .map((f: Field) => ({
+        id: this.key(f.id),
+        url: f.tableUrl || '',
+        submit: f.submitField || f.id,
+        pageSize: Math.max(1, Math.min(100, Number(f.tablePageSize) || 10)),
+        selectable: !!f.tableSelectable,
+        mode: f.tableSelectionMode === 'single' ? 'single' : 'multiple',
+        columns: (f.tableColumns || [])
+          .filter((c) => c.field)
+          .map((c: TableColumn) => ({
+            field: c.field,
+            label: c.label || c.field,
+            sortable: !!c.sortable,
+            filterable: !!c.filterable,
+          })),
+      }));
+    const tablesJson = JSON.stringify(tablesArr);
 
     const decorator = inline
       ? `@Component({
@@ -331,6 +412,7 @@ ${css}`;
     const classBody = `export class ${name.className} {
   model: Record<string, any> = ${modelJson};
   defaults: Record<string, any> = ${modelJson};
+  TABLA = ${tablesJson};
   opciones: Record<string, { value: string; label: string }[]> = ${opcionesJson};
   acUrls: Record<string, string> = ${acUrlsJson};
   sugerencias: Record<string, any[]> = {};
@@ -347,6 +429,8 @@ ${css}`;
   modalConfirm = false;
   modalOkText = 'Aceptar';
   modalCancelText = 'Cancelar';
+  tabla: Record<string, any> = {};
+  filtrosT: Record<string, Record<string, string>> = {};
   private pendiente: (() => void) | null = null;
   private timer: any = null;
 
@@ -358,7 +442,232 @@ ${css}`;
       document.head.appendChild(link);
     }
     this.cargarSelects();
+    this.iniciarTablas();
     this.cargarDatos();
+  }
+
+  iniciarTablas() {
+    this.TABLA.forEach((t: any) => {
+      this.tabla[t.id] = {
+        url: t.url,
+        columns: t.columns || [],
+        pageSize: t.pageSize || 10,
+        selectable: !!t.selectable,
+        mode: t.mode || 'multiple',
+        all: [],
+        pagina: 1,
+        paginas: 1,
+        orden: '',
+        dir: 1,
+        filtros: {},
+        seleccion: t.mode === 'single' ? null : [],
+      };
+      this.filtrosT[t.id] = {};
+      this.cargarTabla(t.id);
+    });
+  }
+
+  cargarTabla(id: string) {
+    const t = this.tabla[id];
+    if (!t || !t.url) return;
+    fetch(t.url, { headers: { 'Accept': 'application/json' } })
+      .then((r: Response) => r.json())
+      .then((data: any) => {
+        const tbl = this.tabla[id];
+        if (!tbl) return;
+        tbl.all = this.pickList(data) || [];
+        if (!tbl.columns || !tbl.columns.length) {
+          const derivadas = this.derivarColumnas(tbl.all);
+          if (derivadas.length) tbl.columns = derivadas;
+        }
+        this.tabla = Object.assign({}, this.tabla, { [id]: tbl });
+      })
+      .catch(() => {
+        const tbl = this.tabla[id];
+        if (!tbl) return;
+        tbl.loadError = true;
+        this.tabla = Object.assign({}, this.tabla, { [id]: tbl });
+      });
+  }
+
+  mensajeTablaVacia(id: string): string {
+    const t = this.tabla[id];
+    if (!t) return '';
+    if (t.loadError) return 'Error al cargar la tabla (' + t.url + '). Verifique la URL y que el servidor permita CORS.';
+    if (!t.url) {
+      return t.columns && t.columns.length
+        ? 'Configure la URL de datos en el editor para cargar la tabla.'
+        : 'Configure una URL de datos y detecte los campos para visualizar la tabla.';
+    }
+    return 'Sin registros.';
+  }
+
+  derivarColumnas(filas: any[]): any[] {
+    if (!filas || !filas.length) return [];
+    const first = filas[0];
+    if (!first || typeof first !== 'object') return [];
+    const keys = Object.keys(first);
+    if (!keys.length) return [];
+    return keys.map((k: string) => ({ field: k, label: k, sortable: true, filterable: true }));
+  }
+
+  filasFiltradas(id: string): any[] {
+    const t = this.tabla[id];
+    if (!t) return [];
+    let filas = (t.all || []).filter((row: any) => {
+      for (const c of t.columns || []) {
+        if (!c.filterable) continue;
+        const f = t.filtros[c.field];
+        if (!f) continue;
+        const v = this.pathGet(row, c.field);
+        const sv = v === undefined || v === null ? '' : String(v);
+        if (sv.toLowerCase().indexOf(String(f).toLowerCase()) < 0) return false;
+      }
+      return true;
+    });
+    if (t.orden) {
+      const campo = t.orden;
+      const d = t.dir;
+      filas = filas.slice().sort((a: any, b: any) => {
+        const av = this.pathGet(a, campo);
+        const bv = this.pathGet(b, campo);
+        const avs = av === undefined || av === null ? '' : typeof av === 'object' ? JSON.stringify(av) : String(av);
+        const bvs = bv === undefined || bv === null ? '' : typeof bv === 'object' ? JSON.stringify(bv) : String(bv);
+        if (avs < bvs) return -1 * d;
+        if (avs > bvs) return 1 * d;
+        return 0;
+      });
+    }
+    t.paginas = Math.max(1, Math.ceil(filas.length / t.pageSize));
+    if (t.pagina > t.paginas) t.pagina = t.paginas;
+    if (t.pagina < 1) t.pagina = 1;
+    return filas;
+  }
+
+  filasVistas(id: string): any[] {
+    const t = this.tabla[id];
+    if (!t) return [];
+    const filas = this.filasFiltradas(id);
+    const inicio = (t.pagina - 1) * t.pageSize;
+    return filas.slice(inicio, inicio + t.pageSize);
+  }
+
+  valorCelda(row: any, campo: string): string {
+    const v = this.pathGet(row, campo);
+    return v === undefined || v === null ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+  }
+
+  claveFila(row: any): string {
+    return JSON.stringify(row);
+  }
+
+  seleccionContiene(id: string, row: any): boolean {
+    const t = this.tabla[id];
+    if (!t) return false;
+    const k = this.claveFila(row);
+    if (t.mode === 'single') return !!t.seleccion && this.claveFila(t.seleccion) === k;
+    return (t.seleccion || []).some((s: any) => this.claveFila(s) === k);
+  }
+
+  alternarUno(id: string, row: any, ev: any) {
+    const t = this.tabla[id];
+    if (!t) return;
+    const on = !!(ev && ev.target && ev.target.checked);
+    if (t.mode === 'single') {
+      if (on) t.seleccion = row;
+    } else {
+      const k = this.claveFila(row);
+      const idx = t.seleccion.findIndex((s: any) => this.claveFila(s) === k);
+      if (on && idx < 0) t.seleccion.push(row);
+      if (!on && idx >= 0) t.seleccion.splice(idx, 1);
+    }
+    this.tabla = Object.assign({}, this.tabla);
+  }
+
+  todosSeleccionados(id: string): boolean {
+    const filas = this.filasFiltradas(id);
+    const t = this.tabla[id];
+    if (!t || !filas.length) return false;
+    return filas.every((r: any) => this.seleccionContiene(id, r));
+  }
+
+  alternarTodos(id: string, ev: any) {
+    const t = this.tabla[id];
+    if (!t) return;
+    const on = !!(ev && ev.target && ev.target.checked);
+    const filas = this.filasFiltradas(id);
+    if (on) {
+      filas.forEach((r: any) => {
+        if (!this.seleccionContiene(id, r)) t.seleccion.push(r);
+      });
+    } else {
+      filas.forEach((r: any) => {
+        const k = this.claveFila(r);
+        const idx = t.seleccion.findIndex((s: any) => this.claveFila(s) === k);
+        if (idx >= 0) t.seleccion.splice(idx, 1);
+      });
+    }
+    this.tabla = Object.assign({}, this.tabla);
+  }
+
+  ordenarTabla(id: string, c: any) {
+    const t = this.tabla[id];
+    if (!t || !c || !c.sortable) return;
+    if (t.orden === c.field) t.dir = -t.dir;
+    else { t.orden = c.field; t.dir = 1; }
+    t.pagina = 1;
+    this.tabla = Object.assign({}, this.tabla);
+  }
+
+  filtrarTabla(id: string) {
+    const t = this.tabla[id];
+    if (!t) return;
+    t.filtros = Object.assign({}, this.filtrosT[id] || {});
+    t.pagina = 1;
+    this.tabla = Object.assign({}, this.tabla);
+  }
+
+  paginaMas(id: string) {
+    const t = this.tabla[id];
+    if (t && t.pagina < t.paginas) {
+      t.pagina++;
+      this.tabla = Object.assign({}, this.tabla);
+    }
+  }
+
+  paginaMenos(id: string) {
+    const t = this.tabla[id];
+    if (t && t.pagina > 1) {
+      t.pagina--;
+      this.tabla = Object.assign({}, this.tabla);
+    }
+  }
+
+  infoTabla(id: string): string {
+    const t = this.tabla[id];
+    if (!t) return '';
+    const total = this.filasFiltradas(id).length;
+    const nSel = t.mode === 'single' ? (t.seleccion ? 1 : 0) : (t.seleccion || []).length;
+    let txt = (t.pagina || 1) + ' de ' + (t.paginas || 1) + ' · ' + total + ' registro(s)';
+    if (t.selectable && nSel) txt += ' · ' + nSel + ' seleccionado(s)';
+    return txt;
+  }
+
+  seleccionValor(id: string): any {
+    const t = this.tabla[id];
+    if (!t || !t.selectable) return null;
+    if (t.mode === 'single') return t.seleccion || null;
+    return t.seleccion && t.seleccion.length ? t.seleccion.slice() : null;
+  }
+
+  orden(id: string): string {
+    const t = this.tabla[id];
+    return t && t.orden ? t.orden : '';
+  }
+
+  dir(id: string): number {
+    const t = this.tabla[id];
+    return t ? t.dir : 1;
   }
 
   esActivo(campo: string, i: number): boolean {
@@ -473,6 +782,11 @@ ${css}`;
     if (!tpl) return '';
     if (tpl.indexOf('{{') < 0) return tpl;
     return tpl.replace(/\\{\\{\\s*([\\w.]+)\\s*\\}\\}/g, (m: string, key: string) => {
+      const tb = this.TABLA.find((x: any) => x.id === key || x.submit === key);
+      if (tb) {
+        const tv = this.seleccionValor(tb.id);
+        return (tv === undefined || tv === null) ? '' : typeof tv === 'object' ? JSON.stringify(tv) : String(tv);
+      }
       const f = FMAP.find((x: { key: string; submit: string }) => x.submit === key || x.key === key);
       if (f) {
         const v = this.model[f.key];
@@ -493,6 +807,20 @@ ${css}`;
       if (val === '') return;
       if (f.checkbox && val === false) return;
       const k = f.submit || f.key;
+      const item = typeof val === 'object' ? JSON.parse(JSON.stringify(val)) : val;
+      if (Object.prototype.hasOwnProperty.call(out, k)) {
+        const prev = out[k];
+        if (Array.isArray(prev)) prev.push(item);
+        else out[k] = [prev, item];
+      } else {
+        out[k] = item;
+      }
+    });
+    this.TABLA.filter((t: any) => t.selectable).forEach((t: any) => {
+      if (this.isOculto(t.id)) return;
+      const val: any = this.seleccionValor(t.id);
+      if (val === undefined || val === null) return;
+      const k = t.submit || t.id;
       const item = typeof val === 'object' ? JSON.parse(JSON.stringify(val)) : val;
       if (Object.prototype.hasOwnProperty.call(out, k)) {
         const prev = out[k];
@@ -690,6 +1018,17 @@ ${css}`;
     this.sugerencias = {};
     this.acIndice = {};
     this.errores = {};
+    this.TABLA.forEach((t: any) => {
+      if (this.tabla[t.id]) {
+        this.tabla[t.id].seleccion = t.mode === 'single' ? null : [];
+        this.tabla[t.id].pagina = 1;
+        this.tabla[t.id].orden = '';
+        this.tabla[t.id].dir = 1;
+        this.tabla[t.id].filtros = {};
+      }
+      this.filtrosT[t.id] = {};
+    });
+    this.tabla = Object.assign({}, this.tabla);
     this.mostrarStatus('', 'info');
   }
 

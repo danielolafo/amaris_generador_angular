@@ -153,6 +153,11 @@ export class Builder implements OnInit {
       multiple: new FormControl(!!field?.multiple),
       optionsColumns: new FormControl(Math.max(1, Math.min(6, Number(field?.optionsColumns) || 1))),
       optionsFromUrl: new FormControl(!!field?.optionsFromUrl),
+      tableUrl: new FormControl(field?.tableUrl || ''),
+      tableColumns: new FormArray((field?.tableColumns || []).map((c: any) => this.tableColumnGroup(c))),
+      tableSelectable: new FormControl(!!field?.tableSelectable),
+      tableSelectionMode: new FormControl(field?.tableSelectionMode || 'multiple'),
+      tablePageSize: new FormControl(Math.max(1, Math.min(100, Number(field?.tablePageSize) || 10))),
       optionsUrl: new FormControl(field?.optionsUrl || ''),
       optionsValueField: new FormControl(field?.optionsValueField || 'value'),
       optionsLabelField: new FormControl(field?.optionsLabelField || 'label'),
@@ -168,10 +173,19 @@ export class Builder implements OnInit {
     });
   }
 
-  private optionGroup(opt: any): FormGroup {
+  optionGroup(opt: any): FormGroup {
     return new FormGroup({
       value: new FormControl(opt?.value || ''),
       label: new FormControl(opt?.label || ''),
+    });
+  }
+
+  private tableColumnGroup(col: any): FormGroup {
+    return new FormGroup({
+      field: new FormControl(col?.field || ''),
+      label: new FormControl(col?.label || ''),
+      sortable: new FormControl(!!col?.sortable),
+      filterable: new FormControl(!!col?.filterable),
     });
   }
 
@@ -591,6 +605,16 @@ export class Builder implements OnInit {
           multiple: !!f.multiple,
           optionsColumns: Math.max(1, Math.min(6, Number(f.optionsColumns) || 1)),
           optionsFromUrl: !!f.optionsFromUrl,
+          tableUrl: f.tableUrl || '',
+          tableColumns: (f.tableColumns || []).map((c: any) => ({
+            field: c.field || '',
+            label: c.label || '',
+            sortable: !!c.sortable,
+            filterable: !!c.filterable,
+          })),
+          tableSelectable: !!f.tableSelectable,
+          tableSelectionMode: f.tableSelectionMode === 'single' ? 'single' : 'multiple',
+          tablePageSize: Math.max(1, Math.min(100, Number(f.tablePageSize) || 10)),
           optionsUrl: f.optionsUrl,
           optionsValueField: f.optionsValueField,
           optionsLabelField: f.optionsLabelField,
