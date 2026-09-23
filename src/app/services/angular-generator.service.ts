@@ -46,6 +46,24 @@ export class AngularGeneratorService {
     return String(id).replace(/[^A-Za-z0-9_-]/g, '_');
   }
 
+  private pasoOf(s: Section): number {
+    return Math.max(0, Math.floor(Number((s as any).paso) || 0));
+  }
+
+  private stepsOf(c: PageConfig): number[] {
+    const vals = c.sections.map((s) => this.pasoOf(s));
+    const distinct = Array.from(new Set(vals));
+    if (distinct.length <= 1) return c.sections.map((_, i) => i);
+    return distinct.sort((a, b) => a - b);
+  }
+
+  private stepRankOf(c: PageConfig, i: number): number {
+    const vals = c.sections.map((s) => this.pasoOf(s));
+    const distinct = Array.from(new Set(vals));
+    if (distinct.length <= 1) return i;
+    return distinct.sort((a, b) => a - b).indexOf(vals[i]);
+  }
+
   private buildTemplate(config: PageConfig, name: { fileBase: string }): string {
     const c = config;
     const defaultCols = c.layout === 'vertical' ? 1 : c.layout === 'twoColumns' ? 2 : Math.max(1, Math.min(6, Number(c.defaultColumns) || 2));
@@ -57,7 +75,7 @@ export class AngularGeneratorService {
     </div>`
       : '';
     const sections = c.sections
-      .map((s, i) => this.tSection(s, s.columns || defaultCols, i, !!c.multiStep))
+      .map((s, i) => this.tSection(s, s.columns || defaultCols, this.stepRankOf(c, i), !!c.multiStep))
       .join('\n');
     const buttons = this.tButtons(c.buttons);
     const actions = c.multiStep
@@ -369,7 +387,7 @@ ${css}`;
           required: !!f.required,
           msg: f.requiredMessage || '',
           vis: String(f.visibleWhen || '').trim(),
-          paso: si,
+          paso: this.stepRankOf(c, si),
         });
         if (f.type === 'checkbox') {
           modelObj[key] = f.multiple
@@ -457,7 +475,7 @@ ${css}`;
   statusVisible = false;
   multiPaso = ${c.multiStep ? 'true' : 'false'};
   paso = 0;
-  pasosTitulos: string[] = ${JSON.stringify(c.sections.map((s) => s.title || ''))};
+  pasosTitulos: string[] = ${JSON.stringify(this.stepsOf(c).map((_, k) => `Paso ${k + 1}`))};
   modalVisible = false;
   modalTipo = '';
   modalTitulo = '';

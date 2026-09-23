@@ -46,6 +46,7 @@ function normalizeField(raw: any): Field {
     'select',
     'checkbox',
     'radio',
+    'table',
   ].includes(f.type)
     ? f.type
     : 'text';
@@ -101,6 +102,7 @@ export function normalizeConfig(raw: any): PageConfig {
         description: String(s?.description ?? ''),
         columns: Math.min(6, Math.max(1, Number(s?.columns) || 1)),
         visibleWhen: String(s?.visibleWhen ?? ''),
+        paso: Math.max(0, Math.floor(Number(s?.paso) || 0)),
         fields: Array.isArray(s?.fields) ? s.fields.map(normalizeField) : [],
       }))
     : [];

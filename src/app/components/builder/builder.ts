@@ -141,6 +141,7 @@ export class Builder implements OnInit {
       description: new FormControl(section?.description || ''),
       columns: new FormControl(section?.columns || 1),
       visibleWhen: new FormControl(section?.visibleWhen || ''),
+      paso: new FormControl(Math.max(0, Math.floor(Number(section?.paso) || 0))),
       fields: new FormArray((section?.fields || []).map((f) => this.fieldGroup(f))),
     });
   }
@@ -294,7 +295,29 @@ export class Builder implements OnInit {
 
   // ---------- sections ----------
 
+  setMultiStep(enabled: boolean) {
+    this.form.get('multiStep')?.setValue(enabled);
+    if (enabled) {
+      const arr = this.sectionsArr();
+      const allZero = arr.controls.every((s) => Math.max(0, Math.floor(Number(s.get('paso')?.value) || 0)) === 0);
+      if (allZero) {
+        arr.controls.forEach((s, i) => s.get('paso')?.setValue(i));
+      }
+    }
+  }
+
+  setSectionPaso(i: number, delta: number) {
+    const arr = this.sectionsArr();
+    if (i < 0 || i >= arr.length) return;
+    const control = arr.at(i).get('paso');
+    if (!control) return;
+    const current = Math.max(0, Math.floor(Number(control.value) || 0));
+    control.setValue(Math.max(0, current + delta));
+  }
+
   addSection() {
+    const pasos = this.sectionsArr().controls.map((s) => Math.max(0, Math.floor(Number(s.get('paso')?.value) || 0)));
+    const maxPaso = pasos.length ? Math.max(...pasos) : 0;
     this.sectionsArr().push(
       this.sectionGroup({
         id: uid('sec'),
@@ -302,6 +325,7 @@ export class Builder implements OnInit {
         description: '',
         columns: this.layoutColumns(),
         visibleWhen: '',
+        paso: maxPaso,
         fields: [],
       }),
     );
@@ -607,6 +631,7 @@ export class Builder implements OnInit {
         description: s.description,
         columns: Number(s.columns) || 1,
         visibleWhen: s.visibleWhen || '',
+        paso: Math.max(0, Math.floor(Number(s.paso) || 0)),
         fields: (s.fields || []).map((f: any) => ({
           id: f.id,
           label: f.label,

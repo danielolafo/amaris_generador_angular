@@ -64,16 +64,32 @@
           </div>
         </div>
 
-        <div class="p-row">
-          <label class="p-chip">
-            <input type="checkbox" formControlName="multiStep" />
-            <span>Formulario en pasos</span>
-          </label>
+        <div class="p-cell">
+          <label class="p-label">Tipo de formulario</label>
+          <div class="layout-grid">
+            <button
+              type="button"
+              class="layout-card"
+              [class.active]="!form.get('multiStep')?.value"
+              (click)="form.get('multiStep')?.setValue(false)">
+              <span class="layout-name">Estándar</span>
+              <span class="layout-hint">Todos los campos en una sola página</span>
+            </button>
+            <button
+              type="button"
+              class="layout-card"
+              [class.active]="!!form.get('multiStep')?.value"
+              (click)="setMultiStep(true)">
+              <span class="layout-name">En pasos</span>
+              <span class="layout-hint">Agrupa varias secciones por paso, con Anterior/Siguiente</span>
+            </button>
+          </div>
         </div>
         @if (form.get('multiStep')?.value) {
           <p class="p-note">
-            Cada sección será un paso del formulario. Reordene los pasos arrastrando las secciones
-            (o con las flechas). Se muestra un solo paso a la vez con botones "Anterior"/"Siguiente".
+            En cada paso se muestran juntas todas las secciones que comparten el mismo número de paso.
+            Para agrupar secciones en un paso, bríndeles el mismo número con el selector "Paso" de cada
+            sección. Se muestra un solo paso a la vez con botones "Anterior"/"Siguiente".
           </p>
         }
 
@@ -220,7 +236,12 @@
           <button type="button" class="sec-grip" (click)="moveSection(i, -1)" title="Subir sección">↑</button>
           <button type="button" class="sec-grip" (click)="moveSection(i, 1)" title="Bajar sección">↓</button>
           @if (form.get('multiStep')?.value) {
-            <span class="sec-tag">Paso {{ i + 1 }}</span>
+            <span class="sec-step">
+              <span class="sec-tag">Paso</span>
+              <button type="button" class="sec-grip" (click)="setSectionPaso(i, -1)" title="Paso anterior">−</button>
+              <span class="sec-tag sec-step-num">{{ (sectionAt(i).get('paso')?.value ?? 0) + 1 }}</span>
+              <button type="button" class="sec-grip" (click)="setSectionPaso(i, 1)" title="Paso siguiente">+</button>
+            </span>
           }
           <input class="sec-title-input" formControlName="title" placeholder="Título de la sección" />
           <label class="p-chip sec-dist">
@@ -307,7 +328,8 @@
         <h3 class="panel-title">Organizar elementos</h3>
         <p class="p-note">
           Arrastre para cambiar el orden
-          @if (form.get('multiStep')?.value) { de los pasos y de los campos dentro de cada paso. }
+          @if (form.get('multiStep')?.value) { de las secciones (dentro de su paso y entre pasos) y de los
+            campos dentro de cada sección. }
           @else { de las secciones y de los campos dentro de cada sección. }
           También puede mover un campo de una sección a otra.
         </p>
@@ -328,6 +350,9 @@
                 <span class="org-grip" title="Arrastrar sección">⠿</span>
                 <span class="org-sec-title">{{ section.get('title')?.value || 'Sección ' + (i + 1) }}</span>
                 <span class="org-sec-count">{{ fieldsCount(i) }} campo(s)</span>
+                @if (form.get('multiStep')?.value) {
+                  <span class="org-step-badge">Paso {{ (section.get('paso')?.value ?? 0) + 1 }}</span>
+                }
               </div>
               <div class="org-fields">
                 @for (field of fieldsArr(i).controls; track $index; let fi = $index) {

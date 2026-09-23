@@ -12,7 +12,7 @@ export class HtmlGeneratorService {
     const head = this.buildHead(c);
     const stepBar = c.multiStep ? this.renderStepBar(c) : '';
     const sections = c.sections
-      .map((s, i) => this.renderSection(s, s.columns || defaultCols, i, !!c.multiStep))
+      .map((s, i) => this.renderSection(s, s.columns || defaultCols, this.stepRankOf(c, i), !!c.multiStep))
       .join('');
     const buttonsHtml = this.renderButtons(c.buttons);
     const actions = c.multiStep
@@ -56,11 +56,10 @@ ${script}
   }
 
   private renderStepBar(c: PageConfig): string {
-    const pills = c.sections
-      .map((s, i) => {
-        const title = this.esc(s.title || `Paso ${i + 1}`);
-        const active = i === 0 ? ' active' : '';
-        return `        <button type="button" class="pb-step${active}" data-stepnav="${i}" title="Ir al paso ${i + 1}">${i + 1} · ${title}</button>`;
+    const pills = this.stepsOf(c)
+      .map((_, k) => {
+        const active = k === 0 ? ' active' : '';
+        return `        <button type="button" class="pb-step${active}" data-stepnav="${k}" title="Ir al paso ${k + 1}">Paso ${k + 1}</button>`;
       })
       .join('\n');
     return `      <div class="pb-steps" id="pb-steps">
@@ -101,6 +100,24 @@ ${pills}
     if (c.layout === 'vertical') return 1;
     if (c.layout === 'twoColumns') return 2;
     return Math.max(1, Math.min(6, Number(c.defaultColumns) || 2));
+  }
+
+  private pasoOf(s: Section): number {
+    return Math.max(0, Math.floor(Number((s as any).paso) || 0));
+  }
+
+  private stepsOf(c: PageConfig): number[] {
+    const vals = c.sections.map((s) => this.pasoOf(s));
+    const distinct = Array.from(new Set(vals));
+    if (distinct.length <= 1) return c.sections.map((_, i) => i);
+    return distinct.sort((a, b) => a - b);
+  }
+
+  private stepRankOf(c: PageConfig, i: number): number {
+    const vals = c.sections.map((s) => this.pasoOf(s));
+    const distinct = Array.from(new Set(vals));
+    if (distinct.length <= 1) return i;
+    return distinct.sort((a, b) => a - b).indexOf(vals[i]);
   }
 
   private buildHead(c: PageConfig): string {
@@ -631,7 +648,7 @@ ${fields}
           type: f.type,
           required: !!f.required,
           msg: f.requiredMessage || '',
-          step: si,
+          step: this.stepRankOf(c, si),
         });
       });
     });
@@ -1699,7 +1716,13 @@ function setupTables(){
 var CUR_STEP = 0;
 
 function stepCount(){
-  return document.querySelectorAll('[data-step]').length;
+  var seen = {};
+  document.querySelectorAll('[data-step]').forEach(function(sec){
+    seen[Number(sec.getAttribute('data-step')) || 0] = 1;
+  });
+  var n = 0;
+  for(var k in seen){ n++; }
+  return n;
 }
 
 function updateStepUI(){

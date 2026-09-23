@@ -94,6 +94,7 @@ export interface Section {
   columns: number;
   fields: Field[];
   visibleWhen: string;
+  paso: number;
 }
 
 export interface PageButton {
@@ -419,6 +420,7 @@ export function defaultConfig(): PageConfig {
         description: '',
         columns: 2,
         visibleWhen: '',
+        paso: 0,
         fields: [firstName, city, email, notes, status],
       },
     ],
