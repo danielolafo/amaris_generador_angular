@@ -58,6 +58,8 @@ function normalizeField(raw: any): Field {
     defaultValue: String(f.defaultValue ?? ''),
     helpText: String(f.helpText ?? ''),
     options,
+    multiple: !!f.multiple,
+    optionsColumns: Math.max(1, Math.min(6, Number(f.optionsColumns) || 1)),
     optionsFromUrl: !!f.optionsFromUrl,
     optionsUrl: String(f.optionsUrl ?? ''),
     optionsValueField: String(f.optionsValueField || 'value'),

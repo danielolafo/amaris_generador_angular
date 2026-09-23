@@ -207,6 +207,8 @@ body.pb-dark .pb-help { color: var(--pb-muted-dark); }
 .pb-check:hover { color: var(--pb-primary); }
 .pb-check input { width: 17px; height: 17px; accent-color: var(--pb-primary); cursor: pointer; }
 .pb-radio-group { border: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.pb-check-grid { display: grid; grid-template-columns: repeat(var(--pb-check-cols, 1), minmax(0, 1fr)); gap: 2px 18px; }
+@media (max-width: 720px) { .pb-check-grid { grid-template-columns: 1fr !important; } }
 .pb-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
 .pb-btn {
   padding: 11px 22px; border: none; border-radius: 9px;
@@ -332,7 +334,27 @@ ${fields}
         </select>
         <span class="pb-error" data-error-for="${id}"></span>${help}
       </div>`;
-      case 'checkbox':
+      case 'checkbox': {
+        if (field.multiple) {
+          const checked = new Set(
+            String(field.defaultValue || '')
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean),
+          );
+          const cols = Math.max(1, Math.min(6, Number(field.optionsColumns) || 1));
+          const urlAttrs = field.optionsFromUrl
+            ? ` data-check-url="${this.attr(field.optionsUrl)}" data-value-field="${this.attr(
+                field.optionsValueField || 'value',
+              )}" data-label-field="${this.attr(field.optionsLabelField || 'label')}"`
+            : '';
+          return `      <div class="pb-field"${showIf}>
+        <span class="pb-label">${label}${req}</span>
+        <fieldset class="pb-radio-group pb-check-grid" id="${cid}" style="--pb-check-cols:${cols}"${urlAttrs}>${this.renderCheckboxes(field, id, checked)}
+        </fieldset>
+        <span class="pb-error" data-error-for="${id}"></span>${help}
+      </div>`;
+        }
         return `      <div class="pb-field"${showIf}>
         <label class="pb-check">
           <input type="checkbox" id="${cid}" name="${id}" data-field="${id}"${this._checked(field)}>
@@ -340,6 +362,7 @@ ${fields}
         </label>
         <span class="pb-error" data-error-for="${id}"></span>${help}
       </div>`;
+      }
       case 'radio':
         return `      <div class="pb-field"${showIf}>
         <span class="pb-label">${label}${req}</span>
@@ -360,6 +383,21 @@ ${fields}
     return ['true', '1', 'si', 'yes', 'checked'].includes(String(field.defaultValue || '').toLowerCase())
       ? ' checked'
       : '';
+  }
+
+  private renderCheckboxes(field: Field, id: string, checked: Set<string>): string {
+    if (field.optionsFromUrl) return '';
+    const opts = field.options && field.options.length ? field.options : [];
+    return opts
+      .map((o) => {
+        const sel = checked.has(String(o.value)) ? ' checked' : '';
+        return `
+          <label class="pb-check">
+            <input type="checkbox" name="${id}" value="${this.attr(o.value)}" data-field="${id}"${sel}>
+            <span>${this.esc(o.label || o.value)}</span>
+          </label>`;
+      })
+      .join('');
   }
 
   private renderRadios(field: Field, id: string): string {
@@ -492,7 +530,22 @@ function $$(s){ return Array.prototype.slice.call(document.querySelectorAll(s));
 
 function valueOf(el){
   if(!el) return null;
-  if(el.type === 'checkbox') return el.checked ? true : null;
+  if(el.type === 'checkbox'){
+    var name = el.name || el.getAttribute('name');
+    var boxes = name ? document.getElementsByName(name) : null;
+    var count = boxes ? boxes.length : 0;
+    var isGroup = false;
+    for(var b=0;b<count;b++){ if(boxes[b].type === 'checkbox' && boxes[b] !== el){ isGroup = true; break; } }
+    if(isGroup){
+      var vals = [];
+      for(var c=0;c<count;c++){
+        var cb = boxes[c];
+        if(cb.type === 'checkbox' && cb.checked){ vals.push(cb.value); }
+      }
+      return vals.length ? vals : null;
+    }
+    return el.checked ? true : null;
+  }
   if(el.type === 'radio') return el.checked ? el.value : null;
   if(el.tagName === 'SELECT') return (el.value === '') ? null : el.value;
   return el.value || null;
@@ -501,7 +554,23 @@ function valueOf(el){
 function setValue(el, v){
   if(!el) return;
   if(v === undefined || v === null) v = '';
-  if(el.type === 'checkbox'){ el.checked = !!(v === true || v === 'true' || v === 1 || v === '1'); return; }
+  if(el.type === 'checkbox'){
+    var name = el.name || el.getAttribute('name');
+    var boxes = name ? document.getElementsByName(name) : null;
+    var count = boxes ? boxes.length : 0;
+    var isGroup = false;
+    for(var b=0;b<count;b++){ if(boxes[b].type === 'checkbox' && boxes[b] !== el){ isGroup = true; break; } }
+    if(isGroup){
+      var list = Array.isArray(v) ? v : String(v).split(',').map(function(x){ return String(x).trim(); }).filter(Boolean);
+      for(var c=0;c<count;c++){
+        var cb = boxes[c];
+        if(cb.type === 'checkbox'){ cb.checked = (list.indexOf(cb.value) >= 0); }
+      }
+      return;
+    }
+    el.checked = !!(v === true || v === 'true' || v === 1 || v === '1');
+    return;
+  }
   if(el.type === 'radio'){
     var name = el.name || el.getAttribute('name');
     var radios = document.getElementsByName(name);
@@ -877,8 +946,53 @@ function loadSelects(){
   });
 }
 
+function loadCheckGroups(){
+  $$('fieldset[data-check-url]').forEach(function(fs){
+    var url = fs.getAttribute('data-check-url');
+    if(!url) return;
+    var vf = fs.getAttribute('data-value-field') || 'value';
+    var lf = fs.getAttribute('data-label-field') || 'label';
+    var checked = [];
+    var fid = null;
+    var boxes = fs.querySelectorAll('input[type="checkbox"]');
+    for(var i=0;i<boxes.length;i++){
+      if(boxes[i].checked) checked.push(boxes[i].value);
+      if(!fid) fid = boxes[i].getAttribute('data-field');
+    }
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var list = pickList(data);
+        fs.innerHTML = '';
+        list.forEach(function(item){
+          var it = (item && typeof item === 'object') ? item : { value: item, label: item };
+          var ov = pathGet(it, vf);
+          var ol = pathGet(it, lf);
+          if(ov === undefined || ov === null) ov = (typeof item === 'object') ? pathGet(item, fid) : item;
+          if(ol === undefined || ol === null) ol = (typeof item === 'object') ? (it.label || it.name || it.id || ov) : item;
+          var lb = document.createElement('label');
+          lb.className = 'pb-check';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.name = fid || 'pb_cb';
+          cb.value = (ov === undefined || ov === null) ? '' : String(ov);
+          if(fid) cb.setAttribute('data-field', fid);
+          if(checked.indexOf(cb.value) >= 0) cb.checked = true;
+          var sp = document.createElement('span');
+          sp.textContent = (ol === undefined || ol === null) ? '' : String(ol);
+          lb.appendChild(cb);
+          lb.appendChild(sp);
+          fs.appendChild(lb);
+        });
+      })
+      .catch(function(){
+        fs.setAttribute('data-load-error', '1');
+      });
+  });
+}
+
 function runLoad(){
-  if(!CFG.load || !CFG.load.url) { loadSelects(); return; }
+  if(!CFG.load || !CFG.load.url) { loadSelects(); loadCheckGroups(); return; }
   var data = collectForm();
   var tpl = CFG.load.request || '';
   var body = /\\{\\{/.test(tpl) ? interpolate(tpl, data) : (tpl.trim() ? tpl : '');
@@ -898,13 +1012,14 @@ function runLoad(){
     .then(function(text){
       var parsed;
       try { parsed = JSON.parse(text); } catch(e){ parsed = text; }
-      if(parsed && typeof parsed === 'object'){ mapResponse(parsed); loadSelects(); }
-      else { loadSelects(); }
+      if(parsed && typeof parsed === 'object'){ mapResponse(parsed); loadSelects(); loadCheckGroups(); }
+      else { loadSelects(); loadCheckGroups(); }
       var msg = (parsed && typeof parsed === 'object' && parsed.message) ? parsed.message : 'Datos cargados correctamente.';
       showStatus(msg, 'success');
     })
     .catch(function(err){
       loadSelects();
+      loadCheckGroups();
       showStatus('Error al cargar los datos: ' + (err && err.message ? err.message : err), 'error');
     });
 }
@@ -1121,6 +1236,7 @@ window.PB_PAGE_API = {
   clean: cleanForm,
   reload: runLoad,
   populateSelects: loadSelects,
+  populateCheckGroups: loadCheckGroups,
   showModal: mostrarModal,
   closeModal: cerrarModal,
   notify: notify

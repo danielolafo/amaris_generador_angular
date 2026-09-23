@@ -99,10 +99,47 @@
         </p>
       </div>
 
-      @if (ctrl('type').value === 'select' || ctrl('type').value === 'radio') {
+      @if (ctrl('type').value === 'checkbox') {
+        <div class="fe-cell">
+          <label class="fe-label">Tipo de casilla</label>
+          <div class="fe-seg">
+            <button
+              type="button"
+              class="fe-seg-btn"
+              [class.active]="!ctrl('multiple').value"
+              (click)="ctrl('multiple').setValue(false)">
+              Casilla única
+            </button>
+            <button
+              type="button"
+              class="fe-seg-btn"
+              [class.active]="ctrl('multiple').value"
+              (click)="ctrl('multiple').setValue(true)">
+              Grupo de casillas
+            </button>
+          </div>
+          <p class="fe-help">
+            <strong>Casilla única</strong>: un solo checkbox (p. ej. "Acepto los términos").<br />
+            <strong>Grupo de casillas</strong>: varias opciones seleccionables a la vez; defina las opciones debajo.
+          </p>
+          @if (ctrl('multiple').value) {
+            <div class="fe-cell">
+              <label class="fe-label">Distribución del grupo (grilla)</label>
+              <select class="fe-input" formControlName="optionsColumns">
+                @for (n of [1, 2, 3, 4, 6]; track n) {
+                  <option [value]="n">{{ n }} columna(s)</option>
+                }
+              </select>
+              <p class="fe-help">Organiza las casillas en una cuadrícula de N columnas.</p>
+            </div>
+          }
+        </div>
+      }
+
+      @if (ctrl('type').value === 'select' || ctrl('type').value === 'radio' || (ctrl('type').value === 'checkbox' && ctrl('multiple').value)) {
         <div class="fe-options">
           <div class="fe-options-head">
-            <span class="fe-label">Opciones del {{ ctrl('type').value === 'select' ? 'SelectBox' : 'Radio' }}</span>
+            <span class="fe-label">Opciones del {{ ctrl('type').value === 'select' ? 'SelectBox' : ctrl('type').value === 'checkbox' ? 'grupo de casillas' : 'Radio' }}</span>
             <label class="fe-chip">
               <input type="checkbox" formControlName="optionsFromUrl" />
               <span>Cargar opciones desde URL</span>

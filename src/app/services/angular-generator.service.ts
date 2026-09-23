@@ -151,13 +151,26 @@ ${fields}
           <option *ngFor="let o of opciones['${id}']" [value]="o.value">{{ o.label }}</option>
         </select>${err}${help}
       </div>`;
-      case 'checkbox':
+      case 'checkbox': {
+        if (f.multiple) {
+          const cols = Math.max(1, Math.min(6, Number(f.optionsColumns) || 1));
+          return `      <div class="pb-field"${showIf}>
+        <span class="pb-label">${label}${req}</span>
+        <fieldset class="pb-radio-group pb-check-grid" id="${cid}" style="--pb-check-cols:${cols}">
+          <label class="pb-check" *ngFor="let o of opciones['${id}']">
+            <input type="checkbox" name="${id}" [value]="o.value" [(ngModel)]="${key}" (change)="limpiarErrorCS('${id}')">
+            <span>{{ o.label }}</span>
+          </label>
+        </fieldset>${err}${help}
+      </div>`;
+        }
         return `      <div class="pb-field"${showIf}>
         <label class="pb-check">
           <input type="checkbox" id="${cid}" name="${id}" [(ngModel)]="${key}" (change)="limpiarErrorCS('${id}')">
           <span>${label}${req}</span>
         </label>${err}${help}
       </div>`;
+      }
       case 'radio':
         return `      <div class="pb-field"${showIf}>
         <span class="pb-label">${label}${req}</span>
@@ -264,15 +277,20 @@ ${css}`;
           vis: String(f.visibleWhen || '').trim(),
         });
         if (f.type === 'checkbox') {
-          modelObj[key] = ['true', '1', 'si', 'yes', 'checked'].includes(String(f.defaultValue || '').toLowerCase());
+          modelObj[key] = f.multiple
+            ? String(f.defaultValue || '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : ['true', '1', 'si', 'yes', 'checked'].includes(String(f.defaultValue || '').toLowerCase());
         } else {
           modelObj[key] = f.defaultValue ?? '';
         }
-        if (f.type === 'select' || f.type === 'radio') {
+        if (f.type === 'select' || f.type === 'radio' || (f.type === 'checkbox' && f.multiple)) {
           opcionesObj[key] = f.optionsFromUrl ? [] : (f.options || []).map((o) => ({ value: o.value, label: o.label || o.value }));
         }
         if (f.autocomplete && f.autocompleteUrl) acUrlsObj[key] = f.autocompleteUrl;
-        if ((f.type === 'select' || f.type === 'radio') && f.optionsFromUrl) {
+        if ((f.type === 'select' || f.type === 'radio' || (f.type === 'checkbox' && f.multiple)) && f.optionsFromUrl) {
           selectJobs.push({
             campo: key,
             url: f.optionsUrl || '',

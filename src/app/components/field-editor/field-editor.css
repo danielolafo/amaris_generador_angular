@@ -167,6 +167,36 @@
   top: 1px;
 }
 
+.fe-seg {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fe-seg-btn {
+  flex: 1;
+  min-width: 120px;
+  border: 1px solid var(--pb-border);
+  background: var(--pb-bg);
+  color: var(--pb-text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.fe-seg-btn:hover {
+  border-color: var(--pb-primary);
+}
+
+.fe-seg-btn.active {
+  border-color: var(--pb-primary);
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--pb-primary);
+}
+
 .fe-options {
   border-top: 1px dashed var(--pb-border);
   padding-top: 12px;

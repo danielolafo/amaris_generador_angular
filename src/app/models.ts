@@ -52,6 +52,8 @@ export interface Field {
   defaultValue: string;
   helpText: string;
   options: SelectOption[];
+  multiple: boolean;
+  optionsColumns: number;
   optionsFromUrl: boolean;
   optionsUrl: string;
   optionsValueField: string;
@@ -190,6 +192,8 @@ export function defaultConfig(): PageConfig {
     defaultValue: '',
     helpText: '',
     options: [],
+    multiple: false,
+    optionsColumns: 1,
     optionsFromUrl: false,
     optionsUrl: '',
     optionsValueField: 'value',
@@ -215,6 +219,8 @@ export function defaultConfig(): PageConfig {
       { value: 'medellin', label: 'Medellín' },
       { value: 'cali', label: 'Cali' },
     ],
+    multiple: false,
+    optionsColumns: 1,
     optionsFromUrl: false,
     optionsUrl: 'https://example.com/api/ciudades',
     optionsValueField: 'codigo',
@@ -236,6 +242,8 @@ export function defaultConfig(): PageConfig {
     defaultValue: '',
     helpText: '',
     options: [],
+    multiple: false,
+    optionsColumns: 1,
     optionsFromUrl: false,
     optionsUrl: '',
     optionsValueField: 'value',
@@ -257,6 +265,8 @@ export function defaultConfig(): PageConfig {
     defaultValue: '',
     helpText: '',
     options: [],
+    multiple: false,
+    optionsColumns: 1,
     optionsFromUrl: false,
     optionsUrl: '',
     optionsValueField: 'value',
@@ -281,6 +291,8 @@ export function defaultConfig(): PageConfig {
       { value: 'activo', label: 'Activo' },
       { value: 'inactivo', label: 'Inactivo' },
     ],
+    multiple: false,
+    optionsColumns: 1,
     optionsFromUrl: false,
     optionsUrl: '',
     optionsValueField: 'value',
