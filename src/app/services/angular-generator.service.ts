@@ -51,10 +51,29 @@ export class AngularGeneratorService {
     const defaultCols = c.layout === 'vertical' ? 1 : c.layout === 'twoColumns' ? 2 : Math.max(1, Math.min(6, Number(c.defaultColumns) || 2));
     const dark = c.theme === 'dark';
     const subtitle = `${c.sections.length} sección(es) · ${c.sections.reduce((t, s) => t + (s.fields?.length || 0), 0)} campo(s)`;
+    const stepBar = c.multiStep
+      ? `  <div class="pb-steps" *ngIf="multiPaso">
+      <button *ngFor="let p of pasosTitulos; let i = index" type="button" class="pb-step" [class.active]="paso === i" [class.done]="i < paso" (click)="irPaso(i)">{{ i + 1 }} · {{ p }}</button>
+    </div>`
+      : '';
     const sections = c.sections
-      .map((s) => this.tSection(s, s.columns || defaultCols))
+      .map((s, i) => this.tSection(s, s.columns || defaultCols, i, !!c.multiStep))
       .join('\n');
     const buttons = this.tButtons(c.buttons);
+    const actions = c.multiStep
+      ? `  <div class="pb-stepnav" *ngIf="multiPaso">
+      <button type="button" class="pb-btn pb-btn-secondary" *ngIf="paso > 0" (click)="retroceder()">‹ Anterior</button>
+      <div class="pb-actions" *ngIf="paso === pasosTitulos.length - 1">
+${buttons}
+      </div>
+      <button type="button" class="pb-btn pb-btn-secondary" *ngIf="paso < pasosTitulos.length - 1" (click)="avanzar()">Siguiente ›</button>
+    </div>
+  <div class="pb-actions" *ngIf="!multiPaso">
+${buttons}
+    </div>`
+      : `  <div class="pb-actions">
+${buttons}
+  </div>`;
     const footer = c.includeFooter
       ? `  <footer class="pb-footer">
     <div class="pb-wrap">${this.esc(c.footerText)}</div>
@@ -81,11 +100,10 @@ export class AngularGeneratorService {
   </header>
   <main class="pb-wrap">
     <form #form="ngForm" (ngSubmit)="enviar(form)" novalidate>
+${stepBar}
 ${sections}
       <div class="pb-status" [class.success]="tipoMensaje === 'success'" [class.error]="tipoMensaje === 'error'" [class.info]="tipoMensaje === 'info'" [style.display]="statusVisible ? 'block' : 'none'">{{ mensaje }}</div>
-      <div class="pb-actions">
-${buttons}
-      </div>
+${actions}
     </form>
   </main>
 ${footer}
@@ -94,11 +112,12 @@ ${modal}
 `;
   }
 
-  private tSection(section: Section, columns: number): string {
+  private tSection(section: Section, columns: number, idx = 0, multiStep = false): string {
     const secId = this.key(section.id);
-    const showIf = section.visibleWhen
-      ? ` *ngIf="visSeccion('${secId}')"`
-      : '';
+    const conds: string[] = [];
+    if (multiStep) conds.push(`paso === ${idx}`);
+    if (section.visibleWhen) conds.push(`visSeccion('${secId}')`);
+    const showIf = conds.length ? ` *ngIf="${conds.join(' && ')}"` : '';
     if (!section.fields || section.fields.length === 0) {
       return `    <section class="pb-card"${showIf}>
       <h2 class="pb-section-title">${this.esc(section.title)}</h2>
@@ -294,9 +313,23 @@ ${css}`;
 
   private buildTs(config: PageConfig, name: { selector: string; className: string; fileBase: string }, html: string, css: string, inline: boolean): string {
     const c = config;
+    const epCfg = (ep: any) => {
+      const method = ep?.method || 'GET';
+      return {
+        url: ep?.url || '',
+        method,
+        request: ep?.requestJson || '',
+        response: ep?.responseJson || '',
+        paramMode: ep?.paramMode === 'query' ? 'query' : 'fixed',
+        paramName: ep?.paramName || (method === 'DELETE' ? 'id' : ''),
+        paramValue: ep?.paramValue || '',
+        headers: ep?.headersJson || '',
+      };
+    };
     const cfg = JSON.stringify({
-      load: { url: c.load.url || '', method: c.load.method, request: c.load.requestJson || '', response: c.load.responseJson || '' },
-      submit: { url: c.submit.url || '', method: c.submit.method, request: c.submit.requestJson || '', response: c.submit.responseJson || '' },
+      multiStep: !!c.multiStep,
+      load: epCfg(c.load),
+      submit: epCfg(c.submit),
       autocomplete: { url: c.autocompleteUrl || '', minChars: c.autocompleteMinChars || 2 },
       messages: { success: c.messageSuccess || '', error: c.messageError || '' },
       customCssUrl: c.customCssUrl || '',
@@ -322,9 +355,9 @@ ${css}`;
     const opcionesObj: Record<string, SelectOption[]> = {};
     const acUrlsObj: Record<string, string> = {};
     const selectJobs: { campo: string; url: string; vf: string; lf: string }[] = [];
-    const fieldsArr: { key: string; load: string; submit: string; type: string; checkbox: boolean; required: boolean; msg: string; vis: string }[] = [];
+    const fieldsArr: { key: string; load: string; submit: string; type: string; checkbox: boolean; required: boolean; msg: string; vis: string; paso: number }[] = [];
 
-    for (const s of c.sections) {
+    c.sections.forEach((s, si) => {
       for (const f of s.fields || []) {
         const key = this.key(f.id);
         fieldsArr.push({
@@ -336,6 +369,7 @@ ${css}`;
           required: !!f.required,
           msg: f.requiredMessage || '',
           vis: String(f.visibleWhen || '').trim(),
+          paso: si,
         });
         if (f.type === 'checkbox') {
           modelObj[key] = f.multiple
@@ -360,7 +394,7 @@ ${css}`;
           });
         }
       }
-    }
+    });
 
     const modelJson = JSON.stringify(modelObj);
     const opcionesJson = JSON.stringify(opcionesObj);
@@ -421,6 +455,9 @@ ${css}`;
   mensaje = '';
   tipoMensaje = 'info';
   statusVisible = false;
+  multiPaso = ${c.multiStep ? 'true' : 'false'};
+  paso = 0;
+  pasosTitulos: string[] = ${JSON.stringify(c.sections.map((s) => s.title || ''))};
   modalVisible = false;
   modalTipo = '';
   modalTitulo = '';
@@ -707,6 +744,91 @@ ${css}`;
     return missing;
   }
 
+  validarPaso(paso: number): string[] {
+    const missing: string[] = [];
+    const errs: Record<string, string> = {};
+    FMAP.forEach((f: { key: string; required: boolean; msg: string; paso: number }) => {
+      if (f.paso !== paso) return;
+      if (!f.required) return;
+      if (this.isOculto(f.key)) return;
+      const v = this.model[f.key];
+      const ok = v !== undefined && v !== null && String(v).trim() !== '';
+      if (!ok) {
+        errs[f.key] = f.msg || 'Este campo es obligatorio.';
+        missing.push(f.key);
+      }
+    });
+    this.errores = errs;
+    return missing;
+  }
+
+  irPaso(i: number) {
+    if (!this.multiPaso || !this.pasosTitulos.length) return;
+    this.paso = Math.max(0, Math.min(this.pasosTitulos.length - 1, i));
+  }
+
+  retroceder() {
+    if (this.paso > 0) this.paso--;
+  }
+
+  avanzar() {
+    const missing = this.validarPaso(this.paso);
+    if (missing.length) {
+      const labels = missing
+        .map((k) => {
+          const m = FMAP.find((x: { key: string }) => x.key === k);
+          return m ? m.key : k;
+        })
+        .join(', ');
+      this.notify('warning', CFG.modal.warningTitle, (CFG.modal.warningMessage || 'Revise los campos marcados.') + (labels ? ' (' + labels + ')' : ''));
+      return;
+    }
+    if (this.paso < this.pasosTitulos.length - 1) this.paso++;
+  }
+
+  headersDe(cfg: any): Record<string, string> {
+    let hdr: any = {};
+    if (cfg && cfg.headers) {
+      try { hdr = JSON.parse(cfg.headers) || {}; } catch { hdr = {}; }
+    }
+    if (Object.keys(hdr).length === 0) {
+      hdr = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+    }
+    for (const k of Object.keys(hdr)) {
+      if (typeof hdr[k] === 'string') hdr[k] = this.interpolate(hdr[k]);
+    }
+    return hdr;
+  }
+
+  appendQuery(url: string, qs: string): string {
+    if (!qs) return url;
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + qs;
+  }
+
+  appendParam(url: string, name: string, value: string): string {
+    if (!name) return url;
+    const s = String(value);
+    if (s === '') return url;
+    return this.appendQuery(url, encodeURIComponent(name) + '=' + encodeURIComponent(s));
+  }
+
+  prepararPeticion(cfg: any, bodyFor: string): { url: string; init: RequestInit } {
+    const method = String(cfg.method || 'GET').toUpperCase();
+    let url = this.interpolate(cfg.url || '');
+    const init: RequestInit = { method, headers: this.headersDe(cfg) };
+    if (method === 'GET') {
+      if (cfg.paramMode === 'query') {
+        url = this.appendParam(url, cfg.paramName, this.interpolate(String(cfg.paramValue || '')));
+      }
+      if (bodyFor) url = this.appendQuery(url, bodyFor);
+    } else if (method === 'DELETE') {
+      url = this.appendParam(url, cfg.paramName, this.interpolate(String(cfg.paramValue || '')));
+    } else {
+      init.body = bodyFor ? bodyFor : JSON.stringify(this.collect());
+    }
+    return { url, init };
+  }
+
   mostrarModal(tipo: string, titulo: string, msg: string) {
     const icons: Record<string, string> = { success: '&#10003;', error: '&#10005;', warning: '&#33;' };
     this.modalTipo = tipo || 'info';
@@ -879,18 +1001,9 @@ ${css}`;
     if (!CFG.load || !CFG.load.url) return;
     const tpl = CFG.load.request || '';
     const body = tpl.indexOf('{{') >= 0 ? this.interpolate(tpl) : tpl.trim() ? tpl : '';
-    const method = (CFG.load.method || 'GET').toUpperCase();
-    let url = CFG.load.url;
-    const init: RequestInit = { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' } };
-    if (method === 'GET') {
-      init.method = 'GET';
-      if (body) url = url + (url.indexOf('?') >= 0 ? '&' : '?') + body;
-    } else {
-      init.method = method;
-      init.body = body ? body : JSON.stringify(this.collect());
-    }
+    const req = this.prepararPeticion(CFG.load, body);
     this.mostrarStatus('Cargando datos...', 'info');
-    fetch(url, init)
+    fetch(req.url, req.init)
       .then((r: Response) => r.text())
       .then((text: string) => {
         let parsed: any;
@@ -984,18 +1097,9 @@ ${css}`;
   enviarAhora() {
     const tpl = CFG.submit.request || '';
     const body = tpl.indexOf('{{') >= 0 ? this.interpolate(tpl) : tpl.trim() ? tpl : '';
-    const method = (CFG.submit.method || 'POST').toUpperCase();
-    let url = CFG.submit.url;
-    const init: RequestInit = { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' } };
-    if (method === 'GET') {
-      init.method = 'GET';
-      if (body) url = url + (url.indexOf('?') >= 0 ? '&' : '?') + body;
-    } else {
-      init.method = method;
-      init.body = body ? body : JSON.stringify(this.collect());
-    }
+    const req = this.prepararPeticion(CFG.submit, body);
     this.mostrarStatus('Enviando datos...', 'info');
-    fetch(url, init)
+    fetch(req.url, req.init)
       .then((r: Response) => r.text())
       .then((text: string) => {
         let parsed: any;
@@ -1015,6 +1119,7 @@ ${css}`;
 
   limpiar() {
     this.model = JSON.parse(JSON.stringify(this.defaults));
+    this.paso = 0;
     this.sugerencias = {};
     this.acIndice = {};
     this.errores = {};

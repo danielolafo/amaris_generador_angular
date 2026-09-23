@@ -13,7 +13,7 @@ export type FieldType =
   | 'radio'
   | 'table';
 
-export type HttpMethod = 'GET' | 'POST' | 'PUT';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 export type PageLayout = 'vertical' | 'twoColumns' | 'grid';
 
@@ -24,6 +24,8 @@ export type ButtonAction = 'submit' | 'clean' | 'navigation';
 export type ButtonStyle = 'primary' | 'secondary' | 'success' | 'danger';
 
 export type SelectionMode = 'single' | 'multiple';
+
+export type GetParamMode = 'fixed' | 'query';
 
 export interface SelectOption {
   value: string;
@@ -42,6 +44,10 @@ export interface JsonEndpoint {
   method: HttpMethod;
   requestJson: string;
   responseJson: string;
+  paramMode: GetParamMode;
+  paramName: string;
+  paramValue: string;
+  headersJson: string;
 }
 
 export interface ConfirmConfig {
@@ -114,6 +120,7 @@ export interface PageConfig {
   layout: PageLayout;
   defaultColumns: number;
   theme: Theme;
+  multiStep: boolean;
   includeFooter: boolean;
   footerText: string;
   load: JsonEndpoint;
@@ -172,7 +179,7 @@ export function uid(prefix = 'id'): string {
 }
 
 export function defaultEndpoint(): JsonEndpoint {
-  return { url: '', method: 'GET', requestJson: '', responseJson: '' };
+  return { url: '', method: 'GET', requestJson: '', responseJson: '', paramMode: 'fixed', paramName: '', paramValue: '', headersJson: '' };
 }
 
 export function defaultModal(): ModalConfig {
@@ -351,6 +358,7 @@ export function defaultConfig(): PageConfig {
     layout: 'twoColumns',
     defaultColumns: 3,
     theme: 'light',
+    multiStep: false,
     includeFooter: true,
     footerText: 'Generado con PageBuilder',
     load: {
@@ -368,6 +376,10 @@ export function defaultConfig(): PageConfig {
         null,
         2,
       ),
+      paramMode: 'fixed',
+      paramName: '',
+      paramValue: '',
+      headersJson: '',
     },
     submit: {
       url: 'https://example.com/api/registro',
@@ -388,6 +400,10 @@ export function defaultConfig(): PageConfig {
         null,
         2,
       ),
+      paramMode: 'fixed',
+      paramName: '',
+      paramValue: '',
+      headersJson: '',
     },
     autocompleteUrl: 'https://example.com/api/buscar',
     autocompleteMinChars: 2,

@@ -40,6 +40,8 @@ export class EndpointEditor {
   readonly token = signal('');
   readonly showJson = signal(false);
   readonly campoToken = '{{campo}}';
+  readonly idToken = '{{id}}';
+  readonly headerExample = '{ "Authorization": "Bearer {{token}}", "X-Tenant": "acme" }';
 
   constructor(private configSvc: ConfigService) {}
 
@@ -75,6 +77,10 @@ export class EndpointEditor {
     const url: string = g.get('url')?.value || '';
     const method: string = (g.get('method')?.value || 'GET').toUpperCase();
     const tpl: string = g.get('requestJson')?.value || '';
+    const paramMode: string = g.get('paramMode')?.value || 'fixed';
+    const paramName: string = g.get('paramName')?.value || '';
+    const paramValue: string = g.get('paramValue')?.value || '';
+    const headersJson: string = g.get('headersJson')?.value || '';
     this.testResult.set('');
     if (!url) {
       this.state.set('error');
@@ -86,18 +92,39 @@ export class EndpointEditor {
     try {
       const data = collectFlatValues(this.configSvc.getValue());
       const body = interpolateLocal(tpl, data);
-      let target = url;
-      const init: RequestInit = {
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      const headers: Record<string, string> = {};
+      if (headersJson && headersJson.trim()) {
+        try {
+          const parsed = JSON.parse(headersJson);
+          for (const k of Object.keys(parsed)) {
+            headers[k] = interpolateLocal(String(parsed[k]), data);
+          }
+        } catch {
+          /* headers JSON inválido: se usan los por defecto */
+        }
+      }
+      if (!Object.keys(headers).length) {
+        headers['Accept'] = 'application/json';
+        headers['Content-Type'] = 'application/json';
+      }
+      let target = interpolateLocal(url, data);
+      const appendParam = () => {
+        const pv = interpolateLocal(paramValue, data);
+        if (paramName && pv) {
+          target = target + (target.includes('?') ? '&' : '?') + encodeURIComponent(paramName) + '=' + encodeURIComponent(pv);
+        }
       };
+      const init: RequestInit = { headers };
       if (method === 'GET') {
         init.method = 'GET';
-        if (body) target = url + (url.includes('?') ? '&' : '?') + body;
-      } else if (method === 'POST' || method === 'PUT') {
+        if (paramMode === 'query') appendParam();
+        if (body) target = target + (target.includes('?') ? '&' : '?') + body;
+      } else if (method === 'DELETE') {
+        init.method = 'DELETE';
+        appendParam();
+      } else {
         init.method = method;
         init.body = body ? body : JSON.stringify(data);
-      } else {
-        init.method = 'GET';
       }
       const res = await fetch(target, init);
       const text = await res.text();

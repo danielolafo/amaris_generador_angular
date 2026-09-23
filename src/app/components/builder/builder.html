@@ -64,6 +64,19 @@
           </div>
         </div>
 
+        <div class="p-row">
+          <label class="p-chip">
+            <input type="checkbox" formControlName="multiStep" />
+            <span>Formulario en pasos</span>
+          </label>
+        </div>
+        @if (form.get('multiStep')?.value) {
+          <p class="p-note">
+            Cada sección será un paso del formulario. Reordene los pasos arrastrando las secciones
+            (o con las flechas). Se muestra un solo paso a la vez con botones "Anterior"/"Siguiente".
+          </p>
+        }
+
         <div class="p-cell">
           <label class="p-label">Mensaje de éxito (envío)</label>
           <input class="p-input" formControlName="messageSuccess" placeholder="Datos enviados correctamente." />
@@ -206,6 +219,9 @@
           <span class="sec-grip sec-drag" draggable="true" (dragstart)="onSectionDragStart(i)" title="Arrastrar para reordenar">⠿</span>
           <button type="button" class="sec-grip" (click)="moveSection(i, -1)" title="Subir sección">↑</button>
           <button type="button" class="sec-grip" (click)="moveSection(i, 1)" title="Bajar sección">↓</button>
+          @if (form.get('multiStep')?.value) {
+            <span class="sec-tag">Paso {{ i + 1 }}</span>
+          }
           <input class="sec-title-input" formControlName="title" placeholder="Título de la sección" />
           <label class="p-chip sec-dist">
             <span>Distribución</span>
@@ -290,7 +306,9 @@
       <section class="panel">
         <h3 class="panel-title">Organizar elementos</h3>
         <p class="p-note">
-          Arrastre para cambiar el orden de las secciones y de los campos dentro de cada sección.
+          Arrastre para cambiar el orden
+          @if (form.get('multiStep')?.value) { de los pasos y de los campos dentro de cada paso. }
+          @else { de las secciones y de los campos dentro de cada sección. }
           También puede mover un campo de una sección a otra.
         </p>
         @if (dragItem()) {

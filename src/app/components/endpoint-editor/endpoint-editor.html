@@ -13,6 +13,7 @@
         <option value="GET">GET</option>
         <option value="POST">POST</option>
         <option value="PUT">PUT</option>
+        <option value="DELETE">DELETE</option>
       </select>
     </div>
     <div class="ep-test-wrap">
@@ -31,6 +32,62 @@
       }
     </div>
   }
+
+  @if (group().get('method')?.value === 'GET') {
+    <div class="ep-row">
+      <label class="ep-label">Cómo enviar el parámetro</label>
+      <select class="ep-input" formControlName="paramMode">
+        <option value="fixed">Fijo en la URL</option>
+        <option value="query">Query params</option>
+      </select>
+    </div>
+    @if (group().get('paramMode')?.value === 'query') {
+      <div class="ep-row ep-row-cols">
+        <div>
+          <label class="ep-label">Nombre</label>
+          <input class="ep-input" formControlName="paramName" placeholder="ej. id" />
+        </div>
+        <div>
+          <label class="ep-label">Valor</label>
+          <input class="ep-input" formControlName="paramValue" placeholder="{{ campoToken }}" />
+        </div>
+      </div>
+    }
+    <p class="ep-hint">
+      <strong>Fijo en la URL:</strong> escriba el parámetro directamente en la URL
+      (p. ej. <code>/registro/5</code> o <code>/registro/{{ idToken }}</code>).<br />
+      <strong>Query params:</strong> se agrega <code>?nombre=valor</code> y el valor puede usar
+      <code>{{ campoToken }}</code>.
+    </p>
+  }
+
+  @if (group().get('method')?.value === 'DELETE') {
+    <div class="ep-row ep-row-cols">
+      <div>
+        <label class="ep-label">Parámetro (solo un id)</label>
+        <input class="ep-input" formControlName="paramName" placeholder="id" />
+      </div>
+      <div>
+        <label class="ep-label">Valor</label>
+        <input class="ep-input" formControlName="paramValue" placeholder="{{ idToken }}" />
+      </div>
+    </div>
+    <p class="ep-hint">
+      El método DELETE envía <em>un solo parámetro</em> (un id) agregado a la URL como
+      <code>?nombre=valor</code>. El valor puede usar <code>{{ campoToken }}</code>.
+    </p>
+  }
+
+  <div class="ep-json-block">
+    <span class="ep-label">Headers (opcional)</span>
+    <textarea class="ep-textarea" formControlName="headersJson" rows="3" spellcheck="false"
+      placeholder="{{ headerExample }}"></textarea>
+    <p class="ep-hint">
+      Si se deja vacío se envían los headers por defecto de la página
+      (<code>Accept: application/json</code> y <code>Content-Type: application/json</code>).
+      Los valores pueden usar <code>{{ campoToken }}</code>.
+    </p>
+  </div>
 
   <button type="button" class="ep-toggle" (click)="showJson.set(!showJson())">
     {{ showJson() ? 'Ocultar JSON de request y respuesta' : 'Mostrar JSON de request y respuesta' }}

@@ -10,10 +10,14 @@ export class HtmlGeneratorService {
     const c = config;
     const defaultCols = this.defaultColumns(c);
     const head = this.buildHead(c);
+    const stepBar = c.multiStep ? this.renderStepBar(c) : '';
     const sections = c.sections
-      .map((s) => this.renderSection(s, s.columns || defaultCols))
+      .map((s, i) => this.renderSection(s, s.columns || defaultCols, i, !!c.multiStep))
       .join('');
-    const buttons = this.renderButtons(c.buttons);
+    const buttonsHtml = this.renderButtons(c.buttons);
+    const actions = c.multiStep
+      ? this.renderStepActions(buttonsHtml)
+      : `<div class="pb-actions">${buttonsHtml}</div>`;
     const footer = this.renderFooter(c);
     const script = this.buildScript(c);
     const bodyClasses =
@@ -35,9 +39,10 @@ ${head}
 ${headerMain}
   <main class="pb-wrap">
     <form id="pb-form" novalidate>
+${stepBar}
 ${sections}
       <div id="pb-status" class="pb-status"></div>
-      <div class="pb-actions">${buttons}</div>
+${actions}
     </form>
   </main>
 ${footer}
@@ -48,6 +53,28 @@ ${script}
 </body>
 </html>
 `;
+  }
+
+  private renderStepBar(c: PageConfig): string {
+    const pills = c.sections
+      .map((s, i) => {
+        const title = this.esc(s.title || `Paso ${i + 1}`);
+        const active = i === 0 ? ' active' : '';
+        return `        <button type="button" class="pb-step${active}" data-stepnav="${i}" title="Ir al paso ${i + 1}">${i + 1} · ${title}</button>`;
+      })
+      .join('\n');
+    return `      <div class="pb-steps" id="pb-steps">
+${pills}
+      </div>
+`;
+  }
+
+  private renderStepActions(buttonsHtml: string): string {
+    return `      <div class="pb-stepnav">
+        <button type="button" class="pb-btn pb-btn-secondary pb-hide" id="pb-prev">‹ Anterior</button>
+        <div class="pb-actions" id="pb-actions">${buttonsHtml}</div>
+        <button type="button" class="pb-btn pb-btn-secondary" id="pb-next">Siguiente ›</button>
+      </div>`;
   }
 
   private renderModal(c: PageConfig): string {
@@ -295,16 +322,37 @@ body.pb-dark .pb-table-foot { border-color: var(--pb-border-dark); }
 .pb-table-info { font-size: 12px; color: var(--pb-muted); }
 body.pb-dark .pb-table-info { color: var(--pb-muted-dark); }
 .pb-table-body td { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.pb-step-off { display: none !important; }
+.pb-steps { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 0; }
+.pb-step {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 999px;
+  border: 1px solid var(--pb-border); background: var(--pb-card);
+  color: var(--pb-muted); font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+body.pb-dark .pb-step { background: var(--pb-card-dark); border-color: var(--pb-border-dark); color: var(--pb-muted-dark); }
+.pb-step:hover { border-color: rgba(37,99,235,.5); color: var(--pb-text); }
+.pb-step.active { background: var(--pb-primary); border-color: var(--pb-primary); color: #fff; }
+.pb-step.done { border-color: rgba(22,163,74,.5); color: var(--pb-success); }
+.pb-stepnav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 24px; }
+.pb-stepnav .pb-actions { flex: 1; margin-top: 0; justify-content: center; }
 `;
   }
 
-  private renderSection(section: Section, columns: number): string {
+  private renderSection(section: Section, columns: number, stepIndex = 0, multiStep = false): string {
     const secId = String(section.id).replace(/[^A-Za-z0-9_-]+/g, '_');
     const showIf = section.visibleWhen
       ? ` data-show-if="${this.attr(String(section.visibleWhen).trim())}"`
       : '';
+    const stepData = multiStep
+      ? ` data-step="${stepIndex}"`
+      : '';
+    const stepCls = multiStep
+      ? ` pb-step${stepIndex > 0 ? ' pb-step-off' : ''}`
+      : '';
     if (!section.fields || section.fields.length === 0) {
-      return `<section class="pb-card" data-sec="${secId}"${showIf}>
+      return `<section class="pb-card${stepCls}" data-sec="${secId}"${showIf}${stepData}>
   <h2 class="pb-section-title">${this.esc(section.title)}</h2>
   <p class="pb-empty">Esta sección no tiene campos configurados.</p>
 </section>`;
@@ -313,7 +361,7 @@ body.pb-dark .pb-table-info { color: var(--pb-muted-dark); }
       ? `<p class="pb-section-desc">${this.esc(section.description)}</p>`
       : '';
     const fields = section.fields.map((f) => this.renderField(f)).join('\n');
-    return `<section class="pb-card" data-sec="${secId}"${showIf}>
+    return `<section class="pb-card${stepCls}" data-sec="${secId}"${showIf}${stepData}>
   <h2 class="pb-section-title">${this.esc(section.title)}</h2>
 ${desc}  <div class="pb-grid" style="--pb-cols:${Math.max(1, Math.min(6, Number(columns) || 1))}">
 ${fields}
@@ -535,20 +583,25 @@ ${fields}
 </footer>`;
   }
 
+  private endpointJson(ep: any): any {
+    const method = ep?.method || 'GET';
+    return {
+      url: ep?.url || '',
+      method,
+      request: ep?.requestJson || '',
+      response: ep?.responseJson || '',
+      paramMode: ep?.paramMode === 'query' ? 'query' : 'fixed',
+      paramName: ep?.paramName || (method === 'DELETE' ? 'id' : ''),
+      paramValue: ep?.paramValue || '',
+      headers: ep?.headersJson || '',
+    };
+  }
+
   private buildScript(c: PageConfig): string {
     const cfg = JSON.stringify({
-      load: {
-        url: c.load.url || '',
-        method: c.load.method,
-        request: c.load.requestJson || '',
-        response: c.load.responseJson || '',
-      },
-      submit: {
-        url: c.submit.url || '',
-        method: c.submit.method,
-        request: c.submit.requestJson || '',
-        response: c.submit.responseJson || '',
-      },
+      multiStep: !!c.multiStep,
+      load: this.endpointJson(c.load),
+      submit: this.endpointJson(c.submit),
       autocomplete: { url: c.autocompleteUrl || '', minChars: c.autocompleteMinChars || 2 },
       messages: { success: c.messageSuccess || '', error: c.messageError || '' },
       modal: {
@@ -568,16 +621,20 @@ ${fields}
         cancelText: c.confirm?.cancelText || 'Cancelar',
       },
     });
-    const fmap = c.sections
-      .flatMap((s) => s.fields || [])
-      .map((f: Field) => ({
-        id: String(f.id).replace(/[^A-Za-z0-9_-]+/g, '_'),
-        load: f.loadField || f.id,
-        submit: f.submitField || f.id,
-        type: f.type,
-        required: !!f.required,
-        msg: f.requiredMessage || '',
-      }));
+    const fmap: any[] = [];
+    c.sections.forEach((s, si) => {
+      (s.fields || []).forEach((f: Field) => {
+        fmap.push({
+          id: String(f.id).replace(/[^A-Za-z0-9_-]+/g, '_'),
+          load: f.loadField || f.id,
+          submit: f.submitField || f.id,
+          type: f.type,
+          required: !!f.required,
+          msg: f.requiredMessage || '',
+          step: si,
+        });
+      });
+    });
     const visSections = c.sections
       .filter((s) => !!s.visibleWhen)
       .map((s) => ({
@@ -1110,23 +1167,61 @@ function loadCheckGroups(){
   });
 }
 
+function resolveHeaders(cfg){
+  var hdr = {};
+  if(cfg && cfg.headers){
+    try { hdr = JSON.parse(cfg.headers) || {}; } catch(e){ hdr = {}; }
+  }
+  if(Object.keys(hdr).length === 0){
+    hdr = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+  }
+  var data = collectForm();
+  for(var k in hdr){
+    if(Object.prototype.hasOwnProperty.call(hdr, k) && typeof hdr[k] === 'string'){
+      hdr[k] = interpolate(hdr[k], data);
+    }
+  }
+  return hdr;
+}
+
+function appendQuery(url, qs){
+  if(!qs) return url;
+  return url + (url.indexOf('?') >= 0 ? '&' : '?') + qs;
+}
+
+function appendParam(url, name, value){
+  if(!name) return url;
+  var s = String(value);
+  if(value === undefined || value === null || s === '') return url;
+  return appendQuery(url, encodeURIComponent(name) + '=' + encodeURIComponent(s));
+}
+
+function buildRequest(cfg, bodyFor){
+  var data = collectForm();
+  var method = (cfg.method || 'GET').toUpperCase();
+  var url = interpolate(cfg.url || '', data);
+  var init = { method: method, headers: resolveHeaders(cfg) };
+  if(method === 'GET'){
+    if(cfg.paramMode === 'query'){
+      url = appendParam(url, cfg.paramName, interpolate(cfg.paramValue || '', data));
+    }
+    if(bodyFor){ url = appendQuery(url, bodyFor); }
+  } else if(method === 'DELETE'){
+    url = appendParam(url, cfg.paramName, interpolate(cfg.paramValue || '', data));
+  } else {
+    init.body = bodyFor ? bodyFor : JSON.stringify(data);
+  }
+  return { url: url, init: init };
+}
+
 function runLoad(){
   if(!CFG.load || !CFG.load.url) { loadSelects(); loadCheckGroups(); return; }
   var data = collectForm();
   var tpl = CFG.load.request || '';
-  var body = /\\{\\{/.test(tpl) ? interpolate(tpl, data) : (tpl.trim() ? tpl : '');
-  var method = (CFG.load.method || 'GET').toUpperCase();
-  var url = CFG.load.url;
-  var init = { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' } };
-  if(method === 'GET'){
-    init.method = 'GET';
-    if(body){ url = url + (url.indexOf('?') >= 0 ? '&' : '?') + body; }
-  } else {
-    init.method = method;
-    init.body = body ? body : JSON.stringify(data);
-  }
+  var body = /\{\{/.test(tpl) ? interpolate(tpl, data) : (tpl.trim() ? tpl : '');
+  var req = buildRequest(CFG.load, body);
   showStatus('Cargando datos...', 'info');
-  fetch(url, init)
+  fetch(req.url, req.init)
     .then(function(r){ return r.text(); })
     .then(function(text){
       var parsed;
@@ -1248,19 +1343,10 @@ function submitForm(e){
 function submitNow(){
   var data = collectForm();
   var tpl = CFG.submit.request || '';
-  var body = /\\{\\{/.test(tpl) ? interpolate(tpl, data) : (tpl.trim() ? tpl : '');
-  var method = (CFG.submit.method || 'POST').toUpperCase();
-  var url = CFG.submit.url;
-  var init = { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' } };
-  if(method === 'GET'){
-    init.method = 'GET';
-    if(body){ url = url + (url.indexOf('?') >= 0 ? '&' : '?') + body; }
-  } else {
-    init.method = method;
-    init.body = body ? body : JSON.stringify(data);
-  }
+  var body = /\{\{/.test(tpl) ? interpolate(tpl, data) : (tpl.trim() ? tpl : '');
+  var req = buildRequest(CFG.submit, body);
   showStatus('Enviando datos...', 'info');
-  fetch(url, init)
+  fetch(req.url, req.init)
     .then(function(r){ return r.text(); })
     .then(function(text){
       var parsed;
@@ -1294,6 +1380,7 @@ function cleanForm(){
     if(root && st){ st.selected = (st.mode === 'single') ? null : []; renderTable(root, st); }
   });
   clearStatus();
+  if(CFG.multiStep) gotoStep(0);
 }
 
 // ---------- tables ----------
@@ -1609,6 +1696,79 @@ function setupTables(){
   });
 }
 
+var CUR_STEP = 0;
+
+function stepCount(){
+  return document.querySelectorAll('[data-step]').length;
+}
+
+function updateStepUI(){
+  if(!CFG.multiStep) return;
+  var last = stepCount() - 1;
+  var prev = document.getElementById('pb-prev');
+  var next = document.getElementById('pb-next');
+  var actions = document.getElementById('pb-actions');
+  if(prev) prev.classList.toggle('pb-hide', CUR_STEP <= 0);
+  if(next) next.classList.toggle('pb-hide', CUR_STEP >= last);
+  if(actions) actions.classList.toggle('pb-hide', CUR_STEP < last);
+  var bar = document.getElementById('pb-steps');
+  if(bar){
+    (bar.querySelectorAll('.pb-step') || []).forEach(function(p){
+      var n = Number(p.getAttribute('data-stepnav'));
+      p.classList.toggle('active', n === CUR_STEP);
+      p.classList.toggle('done', n < CUR_STEP);
+    });
+  }
+  refreshVisibility();
+}
+
+function gotoStep(n){
+  if(!CFG.multiStep) return;
+  var last = stepCount() - 1;
+  if(n < 0) n = 0;
+  if(n > last) n = last >= 0 ? last : 0;
+  CUR_STEP = n;
+  $$('[data-step]').forEach(function(sec){
+    var si = Number(sec.getAttribute('data-step'));
+    sec.classList.toggle('pb-step-off', si !== CUR_STEP);
+  });
+  updateStepUI();
+}
+
+function validateStep(stepIdx){
+  var missing = [];
+  FMAP.forEach(function(f){
+    if(f.step !== stepIdx) return;
+    if(!f.required) return;
+    if(isFieldHidden(f.id)) return;
+    var v = fieldValue(f);
+    var ok = (v !== undefined && v !== null && String(v).trim() !== '');
+    markError(f, !ok);
+    if(!ok) missing.push(f);
+  });
+  return missing;
+}
+
+function stepNext(){
+  var missing = validateStep(CUR_STEP);
+  if(missing.length){
+    var labels = [];
+    for(var mi=0; mi<missing.length; mi++){
+      var fieldEl = document.querySelector('[data-field="' + missing[mi].id + '"]');
+      var lb = fieldEl && fieldEl.closest ? fieldEl.closest('.pb-field') : null;
+      var txt = lb ? lb.querySelector('label, span.pb-label') : null;
+      labels.push(txt ? String(txt.textContent || '').trim().replace(/\\s*\\*\\s*$/, '') : missing[mi].id);
+    }
+    notify('warning', CFG.modal.warningTitle, (CFG.modal.warningMessage || 'Revise los campos marcados.') + (labels.length ? ' (' + labels.join(', ') + ')' : ''));
+    return;
+  }
+  gotoStep(CUR_STEP + 1);
+}
+
+function stepPrev(){
+  gotoStep(CUR_STEP - 1);
+}
+
 function wire(){
   var form = document.getElementById('pb-form');
   if(form) form.addEventListener('submit', submitForm);
@@ -1657,6 +1817,19 @@ function wire(){
   });
   bindAutocomplete();
   setupTables();
+  if(CFG.multiStep){
+    var prevBtn = document.getElementById('pb-prev');
+    var nextBtn = document.getElementById('pb-next');
+    if(prevBtn) prevBtn.addEventListener('click', stepPrev);
+    if(nextBtn) nextBtn.addEventListener('click', stepNext);
+    var bar = document.getElementById('pb-steps');
+    if(bar){
+      (bar.querySelectorAll('.pb-step') || []).forEach(function(p){
+        p.addEventListener('click', function(){ gotoStep(Number(p.getAttribute('data-stepnav'))); });
+      });
+    }
+    gotoStep(0);
+  }
   runLoad();
   refreshVisibility();
 }

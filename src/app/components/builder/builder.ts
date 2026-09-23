@@ -90,6 +90,7 @@ export class Builder implements OnInit {
       layout: new FormControl(config.layout || 'twoColumns'),
       defaultColumns: new FormControl(config.defaultColumns || 2),
       theme: new FormControl(config.theme || 'light'),
+      multiStep: new FormControl(!!config.multiStep),
       includeFooter: new FormControl(config.includeFooter !== false),
       footerText: new FormControl(config.footerText || ''),
       messageSuccess: new FormControl(config.messageSuccess || ''),
@@ -126,6 +127,10 @@ export class Builder implements OnInit {
       method: new FormControl(ep?.method || 'GET'),
       requestJson: new FormControl(ep?.requestJson || ''),
       responseJson: new FormControl(ep?.responseJson || ''),
+      paramMode: new FormControl(ep?.paramMode === 'query' ? 'query' : 'fixed'),
+      paramName: new FormControl(ep?.paramName || ''),
+      paramValue: new FormControl(ep?.paramValue || ''),
+      headersJson: new FormControl(ep?.headersJson || ''),
     });
   }
 
@@ -552,6 +557,7 @@ export class Builder implements OnInit {
       layout: raw.layout,
       defaultColumns: Number(raw.defaultColumns) || 2,
       theme: raw.theme,
+      multiStep: !!raw.multiStep,
       includeFooter: raw.includeFooter,
       footerText: raw.footerText,
       messageSuccess: raw.messageSuccess,
@@ -580,12 +586,20 @@ export class Builder implements OnInit {
         method: raw.load.method,
         requestJson: raw.load.requestJson,
         responseJson: raw.load.responseJson,
+        paramMode: raw.load.paramMode === 'query' ? 'query' : 'fixed',
+        paramName: raw.load.paramName || (raw.load.method === 'DELETE' ? 'id' : ''),
+        paramValue: raw.load.paramValue || '',
+        headersJson: raw.load.headersJson || '',
       },
       submit: {
         url: raw.submit.url,
         method: raw.submit.method,
         requestJson: raw.submit.requestJson,
         responseJson: raw.submit.responseJson,
+        paramMode: raw.submit.paramMode === 'query' ? 'query' : 'fixed',
+        paramName: raw.submit.paramName || (raw.submit.method === 'DELETE' ? 'id' : ''),
+        paramValue: raw.submit.paramValue || '',
+        headersJson: raw.submit.headersJson || '',
       },
       sections: (raw.sections || []).map((s: any) => ({
         id: s.id,

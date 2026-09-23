@@ -2,6 +2,8 @@ import { Injectable, signal } from '@angular/core';
 import {
   Field,
   FieldType,
+  GetParamMode,
+  HttpMethod,
   PageConfig,
   defaultConfig,
   uid,
@@ -16,11 +18,16 @@ function clone<T>(value: T | null | undefined, fallback: T): T {
 
 function normalizeEndpoint(raw: any) {
   const ep = raw || {};
+  const method: HttpMethod = ['GET', 'POST', 'PUT', 'DELETE'].includes(ep.method) ? ep.method : 'GET';
   return {
     url: String(ep.url || ''),
-    method: ['GET', 'POST', 'PUT'].includes(ep.method) ? ep.method : 'GET',
+    method,
     requestJson: String(ep.requestJson || ''),
     responseJson: String(ep.responseJson || ''),
+    paramMode: ep.paramMode === 'query' ? ('query' as GetParamMode) : ('fixed' as GetParamMode),
+    paramName: String(ep.paramName || (method === 'DELETE' ? 'id' : '')),
+    paramValue: String(ep.paramValue || ''),
+    headersJson: String(ep.headersJson || ''),
   };
 }
 
@@ -114,6 +121,7 @@ export function normalizeConfig(raw: any): PageConfig {
     layout: ['vertical', 'twoColumns', 'grid'].includes(c.layout) ? c.layout : 'twoColumns',
     defaultColumns: Math.min(6, Math.max(1, Number(c.defaultColumns) || 2)),
     theme: ['light', 'dark'].includes(c.theme) ? c.theme : 'light',
+    multiStep: !!c.multiStep,
     includeFooter: c.includeFooter !== false,
     footerText: String(c.footerText ?? ''),
     load: normalizeEndpoint(c.load),
