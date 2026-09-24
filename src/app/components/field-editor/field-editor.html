@@ -223,9 +223,32 @@
             }
             <div class="fe-cell">
               <label class="fe-label">Registros por página</label>
-              <input class="fe-input" type="number" min="1" max="100" formControlName="tablePageSize" />
+              <select class="fe-input" formControlName="tablePageSize">
+                <option [value]="10">10</option>
+                <option [value]="20">20</option>
+                <option [value]="30">30</option>
+              </select>
             </div>
           </div>
+
+          <div class="fe-grid">
+            <div class="fe-cell">
+              <label class="fe-label">Campo JSON con los datos</label>
+              <input class="fe-input" formControlName="tableDataField" placeholder="data.rows (vacío = lista raíz)" />
+            </div>
+            <div class="fe-cell">
+              <label class="fe-label">Campo JSON con la página actual</label>
+              <input class="fe-input" formControlName="tablePageField" placeholder="page" />
+            </div>
+            <div class="fe-cell">
+              <label class="fe-label">Campo JSON con el total de elementos</label>
+              <input class="fe-input" formControlName="tableTotalField" placeholder="total" />
+            </div>
+          </div>
+          <p class="fe-help">
+            Si se indica la página y/o el total, la paginación se hace en el servidor: la URL recibe
+            <code>page</code> (página actual) y <code>size</code> (registros por página) como parámetros.
+          </p>
         </div>
       }
 

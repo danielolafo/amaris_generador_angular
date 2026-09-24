@@ -16,7 +16,7 @@ export class HtmlGeneratorService {
       .join('');
     const buttonsHtml = this.renderButtons(c.buttons);
     const actions = c.multiStep
-      ? this.renderStepActions(buttonsHtml)
+      ? this.renderStepActions(c, buttonsHtml)
       : `<div class="pb-actions">${buttonsHtml}</div>`;
     const footer = this.renderFooter(c);
     const script = this.buildScript(c);
@@ -56,10 +56,14 @@ ${script}
   }
 
   private renderStepBar(c: PageConfig): string {
+    const labels = this.stepsMeta(c);
     const pills = this.stepsOf(c)
       .map((_, k) => {
         const active = k === 0 ? ' active' : '';
-        return `        <button type="button" class="pb-step${active}" data-stepnav="${k}" title="Ir al paso ${k + 1}">Paso ${k + 1}</button>`;
+        const label = labels[k]?.label || `Paso ${k + 1}`;
+        return `        <button type="button" class="pb-step${active}" data-stepnav="${k}" title="Ir al paso ${k + 1}">${this.esc(
+          label,
+        )}</button>`;
       })
       .join('\n');
     return `      <div class="pb-steps" id="pb-steps">
@@ -68,9 +72,12 @@ ${pills}
 `;
   }
 
-  private renderStepActions(buttonsHtml: string): string {
+  private renderStepActions(c: PageConfig, buttonsHtml: string): string {
+    const save = this.manualSave(c)
+      ? '\n        <button type="button" class="pb-btn pb-btn-secondary" id="pb-save">Guardar</button>'
+      : '';
     return `      <div class="pb-stepnav">
-        <button type="button" class="pb-btn pb-btn-secondary pb-hide" id="pb-prev">‹ Anterior</button>
+        <button type="button" class="pb-btn pb-btn-secondary pb-hide" id="pb-prev">‹ Anterior</button>${save}
         <div class="pb-actions" id="pb-actions">${buttonsHtml}</div>
         <button type="button" class="pb-btn pb-btn-secondary" id="pb-next">Siguiente ›</button>
       </div>`;
@@ -118,6 +125,22 @@ ${pills}
     const distinct = Array.from(new Set(vals));
     if (distinct.length <= 1) return i;
     return distinct.sort((a, b) => a - b).indexOf(vals[i]);
+  }
+
+  private stepsMeta(c: PageConfig): { id: string; label: string; autoSave: boolean; saveUrl: string }[] {
+    return this.stepsOf(c).map((_, k) => {
+      const p = c.pasos?.[k];
+      return {
+        id: String(p?.id ?? ''),
+        label: String(p?.label ?? '') || `Paso ${k + 1}`,
+        autoSave: !!p?.autoSave,
+        saveUrl: String(p?.saveUrl ?? ''),
+      };
+    });
+  }
+
+  private manualSave(c: PageConfig): boolean {
+    return this.stepsMeta(c).some((p) => !p.autoSave);
   }
 
   private buildHead(c: PageConfig): string {
@@ -338,6 +361,12 @@ body.pb-dark .pb-table-foot { border-color: var(--pb-border-dark); }
 .pb-table-foot .pb-btn { padding: 6px 12px; min-height: 32px; font-size: 12px; }
 .pb-table-info { font-size: 12px; color: var(--pb-muted); }
 body.pb-dark .pb-table-info { color: var(--pb-muted-dark); }
+.pb-tbl-pager { display: flex; align-items: center; gap: 6px; }
+.pb-tbl-pager-label { font-size: 12px; color: var(--pb-muted); }
+body.pb-dark .pb-tbl-pager-label { color: var(--pb-muted-dark); }
+.pb-tbl-page { width: 68px; padding: 6px 8px; font-size: 13px; }
+.pb-tbl-size { width: 82px; padding: 6px 8px; font-size: 13px; }
+.pb-tbl-pages { font-size: 12px; font-weight: 600; min-width: 10px; }
 .pb-table-body td { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
 .pb-step-off { display: none !important; }
 .pb-steps { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 0; }
@@ -462,7 +491,11 @@ ${fields}
         <span class="pb-label">${label}${req}</span>
         <div class="pb-table" data-tbl="${id}" data-field="${id}" data-tbl-url="${this.attr(
           field.tableUrl,
-        )}" data-page-size="${Math.max(1, Math.min(100, Number(field.tablePageSize) || 10))}">
+        )}" data-page-size="${[10, 20, 30].includes(Number(field.tablePageSize))
+          ? Number(field.tablePageSize)
+          : 10}" data-data-field="${this.attr(field.tableDataField)}" data-page-field="${this.attr(
+          field.tablePageField,
+        )}" data-total-field="${this.attr(field.tableTotalField)}">
           <table class="pb-table-el">
             <thead>
               ${this.renderTableHead(field)}
@@ -470,9 +503,18 @@ ${fields}
             <tbody class="pb-table-body"></tbody>
           </table>
           <div class="pb-table-foot">
-            <button type="button" class="pb-btn pb-btn-secondary pb-table-prev">‹ Anterior</button>
             <span class="pb-table-info"></span>
-            <button type="button" class="pb-btn pb-btn-secondary pb-table-next">Siguiente ›</button>
+            <div class="pb-tbl-pager">
+              <span class="pb-tbl-pager-label">Pág.</span>
+              <input type="number" class="pb-input pb-tbl-page" min="1" value="1" aria-label="Número de página">
+              <span class="pb-tbl-pager-label">de</span>
+              <span class="pb-tbl-pages">1</span>
+              <select class="pb-input pb-tbl-size" aria-label="Registros por página">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+              </select>
+            </div>
           </div>
         </div>
         <span class="pb-error" data-error-for="${id}"></span>${help}
@@ -617,6 +659,8 @@ ${fields}
   private buildScript(c: PageConfig): string {
     const cfg = JSON.stringify({
       multiStep: !!c.multiStep,
+      pasos: this.stepsMeta(c),
+      pasoId: c.sharedId || '',
       load: this.endpointJson(c.load),
       submit: this.endpointJson(c.submit),
       autocomplete: { url: c.autocompleteUrl || '', minChars: c.autocompleteMinChars || 2 },
@@ -666,22 +710,27 @@ ${fields}
         cond: String(f.visibleWhen).trim(),
       }));
     const tbls = c.sections
-      .flatMap((s) => s.fields || [])
-      .filter((f: Field) => f.type === 'table')
-      .map((f: Field) => ({
+      .flatMap((s, si) =>
+        (s.fields || []).filter((f: Field) => f.type === 'table').map((f: Field) => ({ f, si })),
+      )
+      .map(({ f, si }) => ({
         id: String(f.id).replace(/[^A-Za-z0-9_-]+/g, '_'),
         url: f.tableUrl || '',
         submit: f.submitField || f.id,
-        pageSize: Math.max(1, Math.min(100, Number(f.tablePageSize) || 10)),
+        pageSize: [10, 20, 30].includes(Number(f.tablePageSize)) ? Number(f.tablePageSize) : 10,
+        dataField: f.tableDataField || '',
+        pageField: f.tablePageField || '',
+        totalField: f.tableTotalField || '',
         selectable: !!f.tableSelectable,
         mode: f.tableSelectionMode === 'single' ? 'single' : 'multiple',
+        step: this.stepRankOf(c, si),
         columns: (f.tableColumns || [])
-          .filter((c) => c.field)
-          .map((c) => ({
-            field: c.field,
-            label: c.label || c.field,
-            sortable: !!c.sortable,
-            filterable: !!c.filterable,
+          .filter((cl) => cl.field)
+          .map((cl) => ({
+            field: cl.field,
+            label: cl.label || cl.field,
+            sortable: !!cl.sortable,
+            filterable: !!cl.filterable,
           })),
       }));
 
@@ -1458,9 +1507,26 @@ function tableSelCount(st){
 function updateTblInfo(info, st){
   if(!info) return;
   var sel = tableSelCount(st);
-  var total = filteredRows(st).length;
+  var total = st.serverPaged ? (st.total || 0) : filteredRows(st).length;
   var extra = sel ? (' · ' + sel + ' seleccionado(s)') : '';
   info.textContent = (st.page || 1) + ' de ' + (st.pageCount || 1) + ' · ' + total + ' registro(s)' + extra;
+}
+
+function syncPager(root, st){
+  var pageInp = root.querySelector('.pb-tbl-page');
+  var sizeSel = root.querySelector('.pb-tbl-size');
+  var pagesEl = root.querySelector('.pb-tbl-pages');
+  if(pageInp) pageInp.value = st.page;
+  if(sizeSel) sizeSel.value = String(st.pageSize);
+  if(pagesEl) pagesEl.textContent = st.pageCount;
+}
+
+function goPage(root, st, v){
+  v = Math.max(1, Math.min(Number(v) || 1, st.pageCount || 1));
+  if(v === st.page) return;
+  st.page = v;
+  if(st.serverPaged) loadTable(root, st);
+  else renderTable(root, st);
 }
 
 function updateSortArrows(root, st){
@@ -1503,11 +1569,17 @@ function renderTable(root, st){
       return 0;
     });
   }
-  st.pageCount = Math.max(1, Math.ceil(rows.length / st.pageSize));
-  if(st.page > st.pageCount) st.page = st.pageCount;
-  if(st.page < 1) st.page = 1;
-  var start = (st.page - 1) * st.pageSize;
-  var pageRows = rows.slice(start, start + st.pageSize);
+  var pageRows;
+  if(st.serverPaged){
+    pageRows = rows.slice(0, st.pageSize);
+  } else {
+    st.pageCount = Math.max(1, Math.ceil(rows.length / st.pageSize));
+    if(st.page > st.pageCount) st.page = st.pageCount;
+    if(st.page < 1) st.page = 1;
+    var start = (st.page - 1) * st.pageSize;
+    pageRows = rows.slice(start, start + st.pageSize);
+  }
+  if(!st.serverPaged && !st.pageCount) st.pageCount = 1;
   var hasSel = st.selectable;
   var colspan = st.columns.length + (hasSel ? 1 : 0);
   tbody.innerHTML = '';
@@ -1559,6 +1631,7 @@ function renderTable(root, st){
   updateSortArrows(root, st);
   updateSelAll(root, st);
   updateTblInfo(info, st);
+  syncPager(root, st);
 }
 
 function loadTable(root, st){
@@ -1576,10 +1649,28 @@ function loadTable(root, st){
     tbody.appendChild(tr);
     return;
   }
-  fetch(st.url, { headers: { 'Accept': 'application/json' } })
+  var url = st.url;
+  if(st.serverPaged){
+    url = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'page=' + st.page + '&size=' + st.pageSize;
+  }
+  fetch(url, { headers: { 'Accept': 'application/json' } })
     .then(function(r){ return r.json(); })
     .then(function(data){
-      st.all = pickList(data) || [];
+      var rows;
+      if(st.serverPaged){
+        rows = st.dataField ? pathGet(data, st.dataField) : data;
+        if(!Array.isArray(rows)) rows = [];
+        var total = st.totalField ? Number(pathGet(data, st.totalField)) : NaN;
+        if(!isNaN(total)) st.total = total;
+        else st.total = rows.length;
+        st.pageCount = Math.max(1, Math.ceil(st.total / st.pageSize));
+        var pg = st.pageField ? Number(pathGet(data, st.pageField)) : NaN;
+        if(!isNaN(pg) && pg >= 1) st.page = Math.min(st.pageCount, Math.floor(pg));
+        if(st.page < 1) st.page = 1;
+      } else {
+        rows = pickList(data) || [];
+      }
+      st.all = rows;
       if(!st.columns.length){
         st.columns = deriveColumnsFromData(st.all);
         if(st.columns.length){
@@ -1588,7 +1679,7 @@ function loadTable(root, st){
           bindTableHeadControls(root, st);
         }
       }
-      st.page = 1;
+      if(!st.serverPaged) st.page = 1;
       renderTable(root, st);
     })
     .catch(function(){
@@ -1688,26 +1779,49 @@ function setupTables(){
   TBLS.forEach(function(t){
     var root = document.querySelector('[data-tbl="' + t.id + '"]');
     if(!root) return;
+    var pz = parseInt(root.getAttribute('data-page-size') || String(t.pageSize || 10), 10) || 10;
+    if([10, 20, 30].indexOf(pz) < 0) pz = 10;
+    var dataField = root.getAttribute('data-data-field') || t.dataField || '';
+    var pageField = root.getAttribute('data-page-field') || t.pageField || '';
+    var totalField = root.getAttribute('data-total-field') || t.totalField || '';
     var st = {
       id: t.id,
       url: root.getAttribute('data-tbl-url') || t.url,
-      pageSize: parseInt(root.getAttribute('data-page-size') || String(t.pageSize || 10), 10) || 10,
+      pageSize: pz,
       selectable: !!t.selectable,
       mode: t.mode || 'multiple',
       columns: t.columns || [],
       all: [],
       page: 1,
       pageCount: 1,
+      total: 0,
+      serverPaged: !!(dataField || pageField || totalField),
+      dataField: dataField,
+      pageField: pageField,
+      totalField: totalField,
       sortField: '',
       sortDir: 1,
       filters: {},
       selected: (t.mode === 'single') ? null : []
     };
     TBL_STATE[t.id] = st;
-    var prev = root.querySelector('.pb-table-prev');
-    var next = root.querySelector('.pb-table-next');
-    if(prev) prev.addEventListener('click', function(){ if(st.page > 1){ st.page--; renderTable(root, st); } });
-    if(next) next.addEventListener('click', function(){ if(st.page < st.pageCount){ st.page++; renderTable(root, st); } });
+    var pageInp = root.querySelector('.pb-tbl-page');
+    var sizeSel = root.querySelector('.pb-tbl-size');
+    if(pageInp){
+      pageInp.addEventListener('change', function(){ goPage(root, st, parseInt(pageInp.value, 10) || 1); });
+      pageInp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ pageInp.blur(); } });
+    }
+    if(sizeSel){
+      sizeSel.addEventListener('change', function(){
+        var v = parseInt(sizeSel.value, 10);
+        if([10, 20, 30].indexOf(v) < 0) v = 10;
+        if(v === st.pageSize) return;
+        st.pageSize = v;
+        st.page = 1;
+        if(st.serverPaged) loadTable(root, st);
+        else renderTable(root, st);
+      });
+    }
     bindTableHeadControls(root, st);
     loadTable(root, st);
   });
@@ -1785,11 +1899,75 @@ function stepNext(){
     notify('warning', CFG.modal.warningTitle, (CFG.modal.warningMessage || 'Revise los campos marcados.') + (labels.length ? ' (' + labels.join(', ') + ')' : ''));
     return;
   }
-  gotoStep(CUR_STEP + 1);
+  navigateTo(CUR_STEP + 1);
 }
 
 function stepPrev(){
-  gotoStep(CUR_STEP - 1);
+  navigateTo(CUR_STEP - 1);
+}
+
+function pasoIdValue(){
+  if(!CFG.pasoId) return '';
+  if(String(CFG.pasoId).indexOf('{{') >= 0) return interpolate(String(CFG.pasoId), {});
+  return String(CFG.pasoId);
+}
+
+function collectStep(stepIdx){
+  var out = {};
+  FMAP.forEach(function(f){
+    if(f.step !== stepIdx) return;
+    if(isFieldHidden(f.id)) return;
+    var v = fieldValue(f);
+    if(v === undefined || v === null) return;
+    var key = f.submit || f.id;
+    if(!Object.prototype.hasOwnProperty.call(out, key)) out[key] = v;
+    else if(Array.isArray(out[key])) out[key].push(v);
+    else out[key] = [out[key], v];
+  });
+  TBLS.forEach(function(t){
+    if(t.step !== stepIdx) return;
+    var sv = tblSelectedValue(TBL_STATE[t.id]);
+    if(sv !== null && sv !== undefined) out[t.submit || t.id] = sv;
+  });
+  return out;
+}
+
+function saveStep(stepIdx, done){
+  var st = CFG.pasos[stepIdx];
+  if(!st || !st.saveUrl){ if(done) done(); return; }
+  var payload = collectStep(stepIdx);
+  var url = String(st.saveUrl);
+  var sep = url.indexOf('?') >= 0 ? '&' : '?';
+  url += sep + 'paso=' + encodeURIComponent(st.id || ('paso' + (stepIdx + 1)));
+  var pid = pasoIdValue();
+  if(pid) url += '&id=' + encodeURIComponent(pid);
+  showStatus('Guardando paso ' + (st.label || (stepIdx + 1)) + '…', 'info');
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.text(); }).then(function(text){
+    clearStatus();
+    var m = null;
+    try { var parsed = JSON.parse(text); if(parsed && typeof parsed === 'object') m = parsed.message || parsed.msg; } catch(e){}
+    if(m) showStatus(String(m), 'success');
+    if(done) done();
+  }).catch(function(err){
+    clearStatus();
+    showStatus('Error al guardar el paso: ' + (err && err.message ? err.message : err), 'error');
+    if(done) done();
+  });
+}
+
+function navigateTo(n){
+  if(!CFG.multiStep) return;
+  var last = stepCount() - 1;
+  if(n < 0) n = 0;
+  if(n > last) n = last >= 0 ? last : 0;
+  if(n === CUR_STEP) return;
+  var from = CFG.pasos[CUR_STEP];
+  if(!from || !from.autoSave || !from.saveUrl){ gotoStep(n); return; }
+  saveStep(CUR_STEP, function(){ gotoStep(n); });
 }
 
 function wire(){
@@ -1840,6 +2018,8 @@ function wire(){
   });
   bindAutocomplete();
   setupTables();
+  var saveBtn = document.getElementById('pb-save');
+  if(saveBtn) saveBtn.addEventListener('click', submitForm);
   if(CFG.multiStep){
     var prevBtn = document.getElementById('pb-prev');
     var nextBtn = document.getElementById('pb-next');
@@ -1848,7 +2028,7 @@ function wire(){
     var bar = document.getElementById('pb-steps');
     if(bar){
       (bar.querySelectorAll('.pb-step') || []).forEach(function(p){
-        p.addEventListener('click', function(){ gotoStep(Number(p.getAttribute('data-stepnav'))); });
+        p.addEventListener('click', function(){ navigateTo(Number(p.getAttribute('data-stepnav'))); });
       });
     }
     gotoStep(0);

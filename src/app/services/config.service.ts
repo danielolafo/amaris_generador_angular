@@ -80,7 +80,10 @@ function normalizeField(raw: any): Field {
       : [],
     tableSelectable: !!f.tableSelectable,
     tableSelectionMode: f.tableSelectionMode === 'single' ? 'single' : 'multiple',
-    tablePageSize: Math.max(1, Math.min(100, Number(f.tablePageSize) || 10)),
+    tablePageSize: [10, 20, 30].includes(Number(f.tablePageSize)) ? Number(f.tablePageSize) : 10,
+    tableDataField: String(f.tableDataField ?? ''),
+    tablePageField: String(f.tablePageField ?? ''),
+    tableTotalField: String(f.tableTotalField ?? ''),
     optionsUrl: String(f.optionsUrl ?? ''),
     optionsValueField: String(f.optionsValueField || 'value'),
     optionsLabelField: String(f.optionsLabelField || 'label'),
@@ -124,6 +127,15 @@ export function normalizeConfig(raw: any): PageConfig {
     defaultColumns: Math.min(6, Math.max(1, Number(c.defaultColumns) || 2)),
     theme: ['light', 'dark'].includes(c.theme) ? c.theme : 'light',
     multiStep: !!c.multiStep,
+    sharedId: String(c.sharedId ?? ''),
+    pasos: Array.isArray(c.pasos)
+      ? c.pasos.map((p: any) => ({
+          id: String(p?.id ?? ''),
+          label: String(p?.label ?? ''),
+          autoSave: !!p?.autoSave,
+          saveUrl: String(p?.saveUrl ?? ''),
+        }))
+      : [],
     includeFooter: c.includeFooter !== false,
     footerText: String(c.footerText ?? ''),
     load: normalizeEndpoint(c.load),

@@ -64,6 +64,18 @@ export class AngularGeneratorService {
     return distinct.sort((a, b) => a - b).indexOf(vals[i]);
   }
 
+  private pasosMeta(c: PageConfig): { id: string; label: string; autoSave: boolean; saveUrl: string }[] {
+    return this.stepsOf(c).map((_, k) => {
+      const p = c.pasos?.[k];
+      return {
+        id: String(p?.id ?? ''),
+        label: String(p?.label ?? '') || `Paso ${k + 1}`,
+        autoSave: !!p?.autoSave,
+        saveUrl: String(p?.saveUrl ?? ''),
+      };
+    });
+  }
+
   private buildTemplate(config: PageConfig, name: { fileBase: string }): string {
     const c = config;
     const defaultCols = c.layout === 'vertical' ? 1 : c.layout === 'twoColumns' ? 2 : Math.max(1, Math.min(6, Number(c.defaultColumns) || 2));
@@ -71,7 +83,7 @@ export class AngularGeneratorService {
     const subtitle = `${c.sections.length} sección(es) · ${c.sections.reduce((t, s) => t + (s.fields?.length || 0), 0)} campo(s)`;
     const stepBar = c.multiStep
       ? `  <div class="pb-steps" *ngIf="multiPaso">
-      <button *ngFor="let p of pasosTitulos; let i = index" type="button" class="pb-step" [class.active]="paso === i" [class.done]="i < paso" (click)="irPaso(i)">{{ i + 1 }} · {{ p }}</button>
+      <button *ngFor="let p of pasos; let i = index" type="button" class="pb-step" [class.active]="paso === i" [class.done]="i < paso" (click)="irPaso(i)">{{ p.label }}</button>
     </div>`
       : '';
     const sections = c.sections
@@ -81,10 +93,11 @@ export class AngularGeneratorService {
     const actions = c.multiStep
       ? `  <div class="pb-stepnav" *ngIf="multiPaso">
       <button type="button" class="pb-btn pb-btn-secondary" *ngIf="paso > 0" (click)="retroceder()">‹ Anterior</button>
-      <div class="pb-actions" *ngIf="paso === pasosTitulos.length - 1">
+      <button type="button" class="pb-btn pb-btn-secondary" *ngIf="guardadoManual" (click)="enviar(form)">Guardar</button>
+      <div class="pb-actions" *ngIf="paso === pasos.length - 1">
 ${buttons}
       </div>
-      <button type="button" class="pb-btn pb-btn-secondary" *ngIf="paso < pasosTitulos.length - 1" (click)="avanzar()">Siguiente ›</button>
+      <button type="button" class="pb-btn pb-btn-secondary" *ngIf="paso < pasos.length - 1" (click)="avanzar()">Siguiente ›</button>
     </div>
   <div class="pb-actions" *ngIf="!multiPaso">
 ${buttons}
@@ -272,9 +285,18 @@ ${fields}
             </tbody>
           </table>
           <div class="pb-table-foot">
-            <button type="button" class="pb-btn pb-btn-secondary" (click)="paginaMenos('${id}')">‹ Anterior</button>
             <span class="pb-table-info">{{ infoTabla('${id}') }}</span>
-            <button type="button" class="pb-btn pb-btn-secondary" (click)="paginaMas('${id}')">Siguiente ›</button>
+            <div class="pb-tbl-pager">
+              <span class="pb-tbl-pager-label">Pág.</span>
+              <input type="number" class="pb-input pb-tbl-page" min="1" [value]="tabla['${id}'].pagina" (keydown.enter)="$event.target.blur()" (change)="paginaIr('${id}', $event)">
+              <span class="pb-tbl-pager-label">de</span>
+              <span class="pb-tbl-pages">{{ tabla['${id}'].paginas }}</span>
+              <select class="pb-input pb-tbl-size" [value]="tabla['${id}'].pageSize" (change)="tamPagina('${id}', $event)">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+              </select>
+            </div>
           </div>
         </div>${err}${help}
       </div>`;
@@ -346,6 +368,8 @@ ${css}`;
     };
     const cfg = JSON.stringify({
       multiStep: !!c.multiStep,
+      pasos: this.pasosMeta(c),
+      pasoId: c.sharedId || '',
       load: epCfg(c.load),
       submit: epCfg(c.submit),
       autocomplete: { url: c.autocompleteUrl || '', minChars: c.autocompleteMinChars || 2 },
@@ -425,15 +449,20 @@ ${css}`;
         .map((s) => ({ id: this.key(s.id), cond: String(s.visibleWhen).trim() })),
     );
     const tablesArr = c.sections
-      .flatMap((s) => s.fields || [])
-      .filter((f: Field) => f.type === 'table')
-      .map((f: Field) => ({
+      .flatMap((s, si) =>
+        (s.fields || []).filter((f: Field) => f.type === 'table').map((f: Field) => ({ f, si })),
+      )
+      .map(({ f, si }) => ({
         id: this.key(f.id),
         url: f.tableUrl || '',
         submit: f.submitField || f.id,
-        pageSize: Math.max(1, Math.min(100, Number(f.tablePageSize) || 10)),
+        pageSize: [10, 20, 30].includes(Number(f.tablePageSize)) ? Number(f.tablePageSize) : 10,
+        dataField: f.tableDataField || '',
+        pageField: f.tablePageField || '',
+        totalField: f.tableTotalField || '',
         selectable: !!f.tableSelectable,
         mode: f.tableSelectionMode === 'single' ? 'single' : 'multiple',
+        step: this.stepRankOf(c, si),
         columns: (f.tableColumns || [])
           .filter((c) => c.field)
           .map((c: TableColumn) => ({
@@ -475,7 +504,11 @@ ${css}`;
   statusVisible = false;
   multiPaso = ${c.multiStep ? 'true' : 'false'};
   paso = 0;
-  pasosTitulos: string[] = ${JSON.stringify(this.stepsOf(c).map((_, k) => `Paso ${k + 1}`))};
+  pasoId = ${JSON.stringify(c.sharedId || '')};
+  guardadoManual = ${c.multiStep ? JSON.stringify(this.pasosMeta(c).some((p) => !p.autoSave)) : 'false'};
+  pasos: { id: string; label: string; autoSave: boolean; saveUrl: string }[] = ${JSON.stringify(
+    this.pasosMeta(c),
+  )};
   modalVisible = false;
   modalTipo = '';
   modalTitulo = '';
@@ -512,6 +545,11 @@ ${css}`;
         all: [],
         pagina: 1,
         paginas: 1,
+        total: 0,
+        serverPaged: !!(t.dataField || t.pageField || t.totalField),
+        dataField: t.dataField || '',
+        pageField: t.pageField || '',
+        totalField: t.totalField || '',
         orden: '',
         dir: 1,
         filtros: {},
@@ -525,12 +563,29 @@ ${css}`;
   cargarTabla(id: string) {
     const t = this.tabla[id];
     if (!t || !t.url) return;
-    fetch(t.url, { headers: { 'Accept': 'application/json' } })
+    let url = t.url;
+    if (t.serverPaged) {
+      url = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'page=' + t.pagina + '&size=' + t.pageSize;
+    }
+    fetch(url, { headers: { 'Accept': 'application/json' } })
       .then((r: Response) => r.json())
       .then((data: any) => {
         const tbl = this.tabla[id];
         if (!tbl) return;
-        tbl.all = this.pickList(data) || [];
+        if (tbl.serverPaged) {
+          let rows = tbl.dataField ? this.pathGet(data, tbl.dataField) : data;
+          if (!Array.isArray(rows)) rows = [];
+          const total = tbl.totalField ? Number(this.pathGet(data, tbl.totalField)) : NaN;
+          tbl.total = isNaN(total) ? rows.length : total;
+          tbl.paginas = Math.max(1, Math.ceil(tbl.total / tbl.pageSize));
+          const pg = tbl.pageField ? Number(this.pathGet(data, tbl.pageField)) : NaN;
+          if (!isNaN(pg) && pg >= 1) tbl.pagina = Math.min(tbl.paginas, Math.floor(pg));
+          if (tbl.pagina < 1) tbl.pagina = 1;
+          tbl.all = rows;
+        } else {
+          tbl.all = this.pickList(data) || [];
+          tbl.pagina = 1;
+        }
         if (!tbl.columns || !tbl.columns.length) {
           const derivadas = this.derivarColumnas(tbl.all);
           if (derivadas.length) tbl.columns = derivadas;
@@ -593,9 +648,11 @@ ${css}`;
         return 0;
       });
     }
-    t.paginas = Math.max(1, Math.ceil(filas.length / t.pageSize));
-    if (t.pagina > t.paginas) t.pagina = t.paginas;
-    if (t.pagina < 1) t.pagina = 1;
+    if (!t.serverPaged) {
+      t.paginas = Math.max(1, Math.ceil(filas.length / t.pageSize));
+      if (t.pagina > t.paginas) t.pagina = t.paginas;
+      if (t.pagina < 1) t.pagina = 1;
+    }
     return filas;
   }
 
@@ -603,6 +660,7 @@ ${css}`;
     const t = this.tabla[id];
     if (!t) return [];
     const filas = this.filasFiltradas(id);
+    if (t.serverPaged) return filas.slice(0, t.pageSize);
     const inicio = (t.pagina - 1) * t.pageSize;
     return filas.slice(inicio, inicio + t.pageSize);
   }
@@ -682,26 +740,32 @@ ${css}`;
     this.tabla = Object.assign({}, this.tabla);
   }
 
-  paginaMas(id: string) {
+  paginaIr(id: string, ev: any) {
     const t = this.tabla[id];
-    if (t && t.pagina < t.paginas) {
-      t.pagina++;
-      this.tabla = Object.assign({}, this.tabla);
-    }
+    if (!t) return;
+    const v = Math.max(1, Math.min(parseInt(ev && ev.target && ev.target.value, 10) || 1, t.paginas || 1));
+    if (v === t.pagina) return;
+    t.pagina = v;
+    if (t.serverPaged) this.cargarTabla(id);
+    else this.tabla = Object.assign({}, this.tabla);
   }
 
-  paginaMenos(id: string) {
+  tamPagina(id: string, ev: any) {
     const t = this.tabla[id];
-    if (t && t.pagina > 1) {
-      t.pagina--;
-      this.tabla = Object.assign({}, this.tabla);
-    }
+    if (!t) return;
+    let v = parseInt(ev && ev.target && ev.target.value, 10);
+    if ([10, 20, 30].indexOf(v) < 0) v = 10;
+    if (v === t.pageSize) return;
+    t.pageSize = v;
+    t.pagina = 1;
+    if (t.serverPaged) this.cargarTabla(id);
+    else this.tabla = Object.assign({}, this.tabla);
   }
 
   infoTabla(id: string): string {
     const t = this.tabla[id];
     if (!t) return '';
-    const total = this.filasFiltradas(id).length;
+    const total = t.serverPaged ? (t.total || 0) : this.filasFiltradas(id).length;
     const nSel = t.mode === 'single' ? (t.seleccion ? 1 : 0) : (t.seleccion || []).length;
     let txt = (t.pagina || 1) + ' de ' + (t.paginas || 1) + ' · ' + total + ' registro(s)';
     if (t.selectable && nSel) txt += ' · ' + nSel + ' seleccionado(s)';
@@ -781,12 +845,12 @@ ${css}`;
   }
 
   irPaso(i: number) {
-    if (!this.multiPaso || !this.pasosTitulos.length) return;
-    this.paso = Math.max(0, Math.min(this.pasosTitulos.length - 1, i));
+    if (!this.multiPaso || !this.pasos.length) return;
+    this.irA(i);
   }
 
   retroceder() {
-    if (this.paso > 0) this.paso--;
+    this.irA(this.paso - 1);
   }
 
   avanzar() {
@@ -801,7 +865,88 @@ ${css}`;
       this.notify('warning', CFG.modal.warningTitle, (CFG.modal.warningMessage || 'Revise los campos marcados.') + (labels ? ' (' + labels + ')' : ''));
       return;
     }
-    if (this.paso < this.pasosTitulos.length - 1) this.paso++;
+    this.irA(this.paso + 1);
+  }
+
+  valorIdPaso(): string {
+    if (!this.pasoId) return '';
+    if (String(this.pasoId).indexOf('{{') >= 0) return this.interpolate(String(this.pasoId));
+    return String(this.pasoId);
+  }
+
+  colectarPaso(paso: number): Record<string, any> {
+    const out: Record<string, any> = {};
+    FMAP.forEach((f: { key: string; submit: string; checkbox: boolean; paso: number }) => {
+      if (f.paso !== paso) return;
+      if (this.isOculto(f.key)) return;
+      const val = this.model[f.key];
+      if (val === undefined || val === null || val === '') return;
+      const k = f.submit || f.key;
+      const item = typeof val === 'object' ? JSON.parse(JSON.stringify(val)) : val;
+      if (Object.prototype.hasOwnProperty.call(out, k)) {
+        const prev = out[k];
+        if (Array.isArray(prev)) prev.push(item);
+        else out[k] = [prev, item];
+      } else {
+        out[k] = item;
+      }
+    });
+    this.TABLA.forEach((t: any) => {
+      if (t.step !== paso) return;
+      const val: any = this.seleccionValor(t.id);
+      if (val === undefined || val === null) return;
+      out[t.submit || t.id] = val;
+    });
+    return out;
+  }
+
+  guardarPaso(paso: number, done: () => void) {
+    const st = this.pasos[paso];
+    if (!st || !st.saveUrl) {
+      if (done) done();
+      return;
+    }
+    const payload = this.colectarPaso(paso);
+    let url = String(st.saveUrl);
+    url += (url.indexOf('?') >= 0 ? '&' : '?') + 'paso=' + encodeURIComponent(st.id || ('paso' + (paso + 1)));
+    const pid = this.valorIdPaso();
+    if (pid) url += '&id=' + encodeURIComponent(pid);
+    this.mostrarStatus('Guardando paso ' + (st.label || (paso + 1)) + '…', 'info');
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then((r: Response) => r.text())
+      .then((text: string) => {
+        let m: any = null;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && typeof parsed === 'object') m = parsed.message || parsed.msg;
+        } catch {
+          m = null;
+        }
+        this.mostrarStatus(m ? String(m) : '', m ? 'success' : 'info');
+        if (done) done();
+      })
+      .catch((err: any) => {
+        this.mostrarStatus('Error al guardar el paso: ' + (err && err.message ? err.message : err), 'error');
+        if (done) done();
+      });
+  }
+
+  irA(i: number) {
+    if (!this.multiPaso || !this.pasos.length) return;
+    const destino = Math.max(0, Math.min(this.pasos.length - 1, i));
+    if (destino === this.paso) return;
+    const st = this.pasos[this.paso];
+    if (!st || !st.autoSave || !st.saveUrl) {
+      this.paso = destino;
+      return;
+    }
+    this.guardarPaso(this.paso, () => {
+      this.paso = destino;
+    });
   }
 
   headersDe(cfg: any): Record<string, string> {

@@ -91,6 +91,55 @@
             Para agrupar secciones en un paso, bríndeles el mismo número con el selector "Paso" de cada
             sección. Se muestra un solo paso a la vez con botones "Anterior"/"Siguiente".
           </p>
+          <div class="p-cell">
+            <label class="p-label">Id compartido de los pasos</label>
+            <input class="p-input" formControlName="sharedId" placeholder="registro_{{ '{{id}}' }}" />
+            <p class="p-note">
+              Identificador del registro que los pasos comparten. Si se escribe el nombre de un campo
+              se usa su valor actual (ej. <code>{{'{{campoId}}'}}</code>). Se envía en cada guardado y se
+              usa al cargar los datos del registro.
+            </p>
+          </div>
+          <div class="p-cell" formArrayName="pasos">
+            <label class="p-label">Pasos del formulario</label>
+            <div class="paso-list">
+              @for (step of pasosArr().controls; track $index) {
+                <div class="paso-card" [formGroupName]="$index">
+                  <div class="paso-card-head">
+                    <span class="paso-card-title">Paso {{ $index + 1 }}</span>
+                  </div>
+                  <div class="p-row">
+                    <div class="p-cell">
+                      <label class="p-label">Etiqueta</label>
+                      <input class="p-input" formControlName="label" placeholder="Paso {{ $index + 1 }}" />
+                    </div>
+                    <div class="p-cell">
+                      <label class="p-label">Id del paso</label>
+                      <input class="p-input" formControlName="id" placeholder="paso{{ $index + 1 }}" />
+                    </div>
+                  </div>
+                  <label class="p-chip">
+                    <input type="checkbox" formControlName="autoSave" />
+                    <span>Guardar automáticamente al cambiar de paso</span>
+                  </label>
+                  <div class="p-cell">
+                    <label class="p-label">URL de guardado automático</label>
+                    <input class="p-input" formControlName="saveUrl" placeholder="https://…/api/guardar/paso{{ $index + 1 }}" />
+                    <p class="p-note">
+                      Envía los campos de este paso (método POST, cuerpo JSON) junto con <code>id</code>
+                      (id compartido) y <code>paso</code> (id del paso) como parámetros de la URL.
+                    </p>
+                  </div>
+                </div>
+              }
+            </div>
+            @if (pasosArr().length && !pasosArr().controls.some((p) => p.get('autoSave')?.value)) {
+              <p class="p-note">
+                Ningún paso guarda automáticamente: se mostrará un botón "Guardar" en todos los pasos para
+                enviar el formulario de forma manual.
+              </p>
+            }
+          </div>
         }
 
         <div class="p-cell">

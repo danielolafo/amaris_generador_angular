@@ -69,11 +69,18 @@ export class Builder implements OnInit {
   ngOnInit() {
     this.form = this.buildForm(this.configSvc.getValue());
     this.lastPushed = this.configSvc.getValue();
+    this.refreshPasos();
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       if (!this.syncEnabled()) return;
       this.configSvc.setConfig(this.buildConfig(this.form.getRawValue()));
       this.lastPushed = this.configSvc.config();
     });
+    this.form
+      .get('sections')!
+      .valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.refreshPasos();
+      });
   }
 
   // ---------- form shape ----------
@@ -85,12 +92,17 @@ export class Builder implements OnInit {
     const buttons = new FormArray(
       (config.buttons || []).map((b: PageButton) => this.buttonGroup(b)),
     );
+    const pasos = new FormArray(
+      (config.pasos || []).map((p: any) => this.stepGroup(p)),
+    );
     return new FormGroup({
       pageTitle: new FormControl(config.pageTitle || ''),
       layout: new FormControl(config.layout || 'twoColumns'),
       defaultColumns: new FormControl(config.defaultColumns || 2),
       theme: new FormControl(config.theme || 'light'),
       multiStep: new FormControl(!!config.multiStep),
+      sharedId: new FormControl(config.sharedId || ''),
+      pasos,
       includeFooter: new FormControl(config.includeFooter !== false),
       footerText: new FormControl(config.footerText || ''),
       messageSuccess: new FormControl(config.messageSuccess || ''),
@@ -163,7 +175,10 @@ export class Builder implements OnInit {
       tableColumns: new FormArray((field?.tableColumns || []).map((c: any) => this.tableColumnGroup(c))),
       tableSelectable: new FormControl(!!field?.tableSelectable),
       tableSelectionMode: new FormControl(field?.tableSelectionMode || 'multiple'),
-      tablePageSize: new FormControl(Math.max(1, Math.min(100, Number(field?.tablePageSize) || 10))),
+      tablePageSize: new FormControl([10, 20, 30].includes(Number(field?.tablePageSize)) ? Number(field?.tablePageSize) : 10),
+      tableDataField: new FormControl(field?.tableDataField || ''),
+      tablePageField: new FormControl(field?.tablePageField || ''),
+      tableTotalField: new FormControl(field?.tableTotalField || ''),
       optionsUrl: new FormControl(field?.optionsUrl || ''),
       optionsValueField: new FormControl(field?.optionsValueField || 'value'),
       optionsLabelField: new FormControl(field?.optionsLabelField || 'label'),
@@ -183,6 +198,15 @@ export class Builder implements OnInit {
     return new FormGroup({
       value: new FormControl(opt?.value || ''),
       label: new FormControl(opt?.label || ''),
+    });
+  }
+
+  stepGroup(step: any): FormGroup {
+    return new FormGroup({
+      id: new FormControl(step?.id || ''),
+      label: new FormControl(step?.label || ''),
+      autoSave: new FormControl(!!step?.autoSave),
+      saveUrl: new FormControl(step?.saveUrl || ''),
     });
   }
 
@@ -238,6 +262,37 @@ export class Builder implements OnInit {
 
   buttonsArr(): FormArray {
     return this.form.get('buttons') as FormArray;
+  }
+
+  pasosArr(): FormArray {
+    return this.form.get('pasos') as FormArray;
+  }
+
+  pasoAt(i: number): FormGroup {
+    return this.pasosArr().at(i) as FormGroup;
+  }
+
+  derivedStepCount(): number {
+    const pasos = this.sectionsArr().controls.map((s) =>
+      Math.max(0, Math.floor(Number(s.get('paso')?.value) || 0)),
+    );
+    const distinct = new Set(pasos);
+    return distinct.size > 1 ? distinct.size : this.sectionsArr().length;
+  }
+
+  refreshPasos() {
+    const arr = this.pasosArr();
+    if (!arr) return;
+    const n = this.derivedStepCount();
+    while (arr.length < n) {
+      arr.push(this.stepGroup({ label: `Paso ${arr.length + 1}` }));
+    }
+    while (arr.length > n) {
+      arr.removeAt(arr.length - 1);
+    }
+    arr.controls.forEach((g, i) => {
+      if (!g.get('label')?.value) g.get('label')?.setValue(`Paso ${i + 1}`);
+    });
   }
 
   fieldIds(): string[] {
@@ -582,6 +637,13 @@ export class Builder implements OnInit {
       defaultColumns: Number(raw.defaultColumns) || 2,
       theme: raw.theme,
       multiStep: !!raw.multiStep,
+      sharedId: raw.sharedId || '',
+      pasos: (raw.pasos || []).map((p: any) => ({
+        id: p.id || '',
+        label: p.label || '',
+        autoSave: !!p.autoSave,
+        saveUrl: p.saveUrl || '',
+      })),
       includeFooter: raw.includeFooter,
       footerText: raw.footerText,
       messageSuccess: raw.messageSuccess,
@@ -653,7 +715,10 @@ export class Builder implements OnInit {
           })),
           tableSelectable: !!f.tableSelectable,
           tableSelectionMode: f.tableSelectionMode === 'single' ? 'single' : 'multiple',
-          tablePageSize: Math.max(1, Math.min(100, Number(f.tablePageSize) || 10)),
+          tablePageSize: [10, 20, 30].includes(Number(f.tablePageSize)) ? Number(f.tablePageSize) : 10,
+          tableDataField: f.tableDataField || '',
+          tablePageField: f.tablePageField || '',
+          tableTotalField: f.tableTotalField || '',
           optionsUrl: f.optionsUrl,
           optionsValueField: f.optionsValueField,
           optionsLabelField: f.optionsLabelField,

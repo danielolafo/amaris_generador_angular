@@ -76,6 +76,9 @@ export interface Field {
   tableSelectable: boolean;
   tableSelectionMode: SelectionMode;
   tablePageSize: number;
+  tableDataField: string;
+  tablePageField: string;
+  tableTotalField: string;
   optionsUrl: string;
   optionsValueField: string;
   optionsLabelField: string;
@@ -116,12 +119,21 @@ export interface ModalConfig {
   warningMessage: string;
 }
 
+export interface FormStep {
+  id: string;
+  label: string;
+  autoSave: boolean;
+  saveUrl: string;
+}
+
 export interface PageConfig {
   pageTitle: string;
   layout: PageLayout;
   defaultColumns: number;
   theme: Theme;
   multiStep: boolean;
+  sharedId: string;
+  pasos: FormStep[];
   includeFooter: boolean;
   footerText: string;
   load: JsonEndpoint;
@@ -224,6 +236,9 @@ export function defaultConfig(): PageConfig {
     tableSelectable: false,
     tableSelectionMode: 'multiple',
     tablePageSize: 10,
+    tableDataField: '',
+    tablePageField: '',
+    tableTotalField: '',
     optionsUrl: '',
     optionsValueField: 'value',
     optionsLabelField: 'label',
@@ -256,6 +271,9 @@ export function defaultConfig(): PageConfig {
     tableSelectable: false,
     tableSelectionMode: 'multiple',
     tablePageSize: 10,
+    tableDataField: '',
+    tablePageField: '',
+    tableTotalField: '',
     optionsUrl: 'https://example.com/api/ciudades',
     optionsValueField: 'codigo',
     optionsLabelField: 'nombre',
@@ -284,6 +302,9 @@ export function defaultConfig(): PageConfig {
     tableSelectable: false,
     tableSelectionMode: 'multiple',
     tablePageSize: 10,
+    tableDataField: '',
+    tablePageField: '',
+    tableTotalField: '',
     optionsUrl: '',
     optionsValueField: 'value',
     optionsLabelField: 'label',
@@ -312,6 +333,9 @@ export function defaultConfig(): PageConfig {
     tableSelectable: false,
     tableSelectionMode: 'multiple',
     tablePageSize: 10,
+    tableDataField: '',
+    tablePageField: '',
+    tableTotalField: '',
     optionsUrl: '',
     optionsValueField: 'value',
     optionsLabelField: 'label',
@@ -343,6 +367,9 @@ export function defaultConfig(): PageConfig {
     tableSelectable: false,
     tableSelectionMode: 'multiple',
     tablePageSize: 10,
+    tableDataField: '',
+    tablePageField: '',
+    tableTotalField: '',
     optionsUrl: '',
     optionsValueField: 'value',
     optionsLabelField: 'label',
@@ -360,6 +387,8 @@ export function defaultConfig(): PageConfig {
     defaultColumns: 3,
     theme: 'light',
     multiStep: false,
+    sharedId: '',
+    pasos: [],
     includeFooter: true,
     footerText: 'Generado con PageBuilder',
     load: {

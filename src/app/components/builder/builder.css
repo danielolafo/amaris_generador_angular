@@ -278,6 +278,10 @@
   text-align: center;
 }
 
+.paso-list { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.paso-card { border: 1px solid var(--pb-border); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; background: var(--pb-card); }
+.paso-card-title { font-weight: 700; font-size: 12.5px; }
+
 .org-step-badge {
   font-size: 10px;
   font-weight: 700;
