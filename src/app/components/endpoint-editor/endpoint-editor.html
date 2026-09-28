@@ -3,7 +3,21 @@
 
   <div class="ep-row">
     <label class="ep-label">URL</label>
-    <input class="ep-input" formControlName="url" placeholder="https://api.ejemplo.com/..." />
+    <input class="ep-input" formControlName="url" #urlInput placeholder="https://api.ejemplo.com/..." />
+    @if (envNames().length) {
+      <div class="ep-token">
+        <select class="ep-input ep-token-select" #envSel
+          (change)="insertToken(urlInput, envTokenValue(envSel.value)); envSel.value = ''">
+          <option value="">Insertar variable de entorno…</option>
+          @for (n of envNames(); track n) {
+            <option [value]="n">{{ envTokenValue(n) }}</option>
+          }
+        </select>
+      </div>
+    }
+    @if (resolvedUrl() && resolvedUrl() !== (group().get('url')?.value || '')) {
+      <p class="ep-hint">Se probará contra: <code>{{ resolvedUrl() }}</code></p>
+    }
   </div>
 
   <div class="ep-row ep-row-cols">
@@ -27,6 +41,9 @@
   @if (state() !== 'idle') {
     <div class="ep-test" [class.error]="state() === 'error'" [class.ok]="state() === 'ok'">
       <strong>{{ testMessage() }}</strong>
+      @if (testUrl()) {
+        <pre class="ep-test-url">{{ testUrl() }}</pre>
+      }
       @if (testResult()) {
         <pre>{{ testResult() }}</pre>
       }

@@ -1,11 +1,13 @@
 import { Injectable, signal } from '@angular/core';
 import {
+  EnvVar,
   Field,
   FieldType,
   GetParamMode,
   HttpMethod,
   PageConfig,
   defaultConfig,
+  sanitizeEnvName,
   uid,
 } from '../models';
 
@@ -29,6 +31,23 @@ function normalizeEndpoint(raw: any) {
     paramValue: String(ep.paramValue || ''),
     headersJson: String(ep.headersJson || ''),
   };
+}
+
+function normalizeEnvVars(raw: any): EnvVar[] {
+  if (!Array.isArray(raw)) return [];
+  const out: EnvVar[] = [];
+  for (const item of raw) {
+    const name = sanitizeEnvName(item?.name);
+    if (!name || out.some((v) => v.name === name)) continue;
+    out.push({
+      id: String(item?.id || uid('env')),
+      name,
+      value: String(item?.value ?? ''),
+      testValue: String(item?.testValue ?? ''),
+      useTestValue: !!item?.useTestValue,
+    });
+  }
+  return out;
 }
 
 function normalizeField(raw: any): Field {
@@ -138,6 +157,7 @@ export function normalizeConfig(raw: any): PageConfig {
       : [],
     includeFooter: c.includeFooter !== false,
     footerText: String(c.footerText ?? ''),
+    envVars: normalizeEnvVars(c.envVars),
     load: normalizeEndpoint(c.load),
     submit: normalizeEndpoint(c.submit),
     autocompleteUrl: String(c.autocompleteUrl ?? ''),

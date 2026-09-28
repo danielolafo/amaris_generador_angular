@@ -1,15 +1,21 @@
 import { Injectable, Inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import type { Field, PageConfig, PageButton, Section, TableColumn } from '../models';
+import { applyEnvMap, envValueMap } from '../models';
+
+export interface GenerateOptions {
+  testValues?: boolean;
+}
 
 @Injectable({ providedIn: 'root' })
 export class HtmlGeneratorService {
   constructor(@Inject(DOCUMENT) private doc: Document) {}
 
-  generate(config: PageConfig): string {
+  generate(config: PageConfig, opts: GenerateOptions = {}): string {
     const c = config;
+    const env = envValueMap(c.envVars, !!opts.testValues);
     const defaultCols = this.defaultColumns(c);
-    const head = this.buildHead(c);
+    const head = this.buildHead(c, env);
     const stepBar = c.multiStep ? this.renderStepBar(c) : '';
     const sections = c.sections
       .map((s, i) => this.renderSection(s, s.columns || defaultCols, this.stepRankOf(c, i), !!c.multiStep))
@@ -19,7 +25,7 @@ export class HtmlGeneratorService {
       ? this.renderStepActions(c, buttonsHtml)
       : `<div class="pb-actions">${buttonsHtml}</div>`;
     const footer = this.renderFooter(c);
-    const script = this.buildScript(c);
+    const script = this.buildScript(c, env);
     const bodyClasses =
       c.theme === 'dark' ? ' class="pb-dark"' : '';
     const headerMain = `
@@ -143,9 +149,10 @@ ${pills}
     return this.stepsMeta(c).some((p) => !p.autoSave);
   }
 
-  private buildHead(c: PageConfig): string {
-    const cssLink = c.customCssUrl
-      ? `<link rel="stylesheet" href="${this.esc(c.customCssUrl)}">\n`
+  private buildHead(c: PageConfig, env: Record<string, string> = {}): string {
+    const cssUrl = applyEnvMap(c.customCssUrl || '', env);
+    const cssLink = cssUrl
+      ? `<link rel="stylesheet" href="${this.esc(cssUrl)}">\n`
       : '';
     return `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -657,9 +664,10 @@ ${fields}
     };
   }
 
-  private buildScript(c: PageConfig): string {
+  private buildScript(c: PageConfig, env: Record<string, string> = {}): string {
     const cfg = JSON.stringify({
       multiStep: !!c.multiStep,
+      env,
       pasos: this.stepsMeta(c),
       pasoId: c.sharedId || '',
       load: this.endpointJson(c.load),
@@ -745,6 +753,15 @@ var PENDING_SUBMIT = null;
 
 function $(s){ return document.querySelector(s); }
 function $$(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
+
+function resolverEnv(tpl){
+  if(!tpl) return '';
+  if(tpl.indexOf('{{') < 0) return tpl;
+  return tpl.replace(/\\{\\{\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*\\}\\}/g, function(m, key){
+    if(CFG.env && Object.prototype.hasOwnProperty.call(CFG.env, key)) return CFG.env[key];
+    return m;
+  });
+}
 
 function valueOf(el){
   if(!el) return null;
@@ -882,9 +899,10 @@ function mapResponse(data){
 }
 
 function interpolate(tpl, data){
-  if(!tpl) return '';
-  if(tpl.indexOf('{{') < 0) return tpl;
-  return tpl.replace(/\\{\\{\\s*([\\w.]+)\\s*\\}\\}/g, function(m, key){
+  var t = resolverEnv(tpl);
+  if(!t) return '';
+  if(t.indexOf('{{') < 0) return t;
+  return t.replace(/\\{\\{\\s*([\\w.]+)\\s*\\}\\}/g, function(m, key){
     var tbl = null;
     for(var i=0;i<TBLS.length;i++){
       if(TBLS[i].submit === key || TBLS[i].id === key){ tbl = TBLS[i]; break; }
@@ -1148,7 +1166,7 @@ function pickList(data){
 
 function loadSelects(){
   $$('select[data-select-url]').forEach(function(sel){
-    var url = sel.getAttribute('data-select-url');
+    var url = resolverEnv(sel.getAttribute('data-select-url'));
     if(!url) return;
     var vf = sel.getAttribute('data-value-field') || 'value';
     var lf = sel.getAttribute('data-label-field') || 'label';
@@ -1191,7 +1209,7 @@ function loadSelects(){
 
 function loadCheckGroups(){
   $$('fieldset[data-check-url]').forEach(function(fs){
-    var url = fs.getAttribute('data-check-url');
+    var url = resolverEnv(fs.getAttribute('data-check-url'));
     if(!url) return;
     var vf = fs.getAttribute('data-value-field') || 'value';
     var lf = fs.getAttribute('data-label-field') || 'label';
@@ -1309,7 +1327,7 @@ function bindAutocomplete(){
   var min = (CFG.autocomplete.minChars > 0) ? CFG.autocomplete.minChars : 2;
   $$('[data-ac]').forEach(function(input){
     var inputUrl = input.getAttribute('data-ac-url');
-    var url = inputUrl || (CFG.autocomplete ? CFG.autocomplete.url : '');
+    var url = resolverEnv(inputUrl || (CFG.autocomplete ? CFG.autocomplete.url : ''));
     if(!url) return;
     input.setAttribute('autocomplete', 'off');
     var box = document.createElement('div');
@@ -1650,7 +1668,7 @@ function loadTable(root, st){
     tbody.appendChild(tr);
     return;
   }
-  var url = st.url;
+  var url = resolverEnv(st.url);
   if(st.serverPaged){
     url = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'page=' + st.page + '&size=' + st.pageSize;
   }

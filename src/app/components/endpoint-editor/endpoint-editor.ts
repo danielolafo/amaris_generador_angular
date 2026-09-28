@@ -1,7 +1,7 @@
-import { Component, input, signal } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ConfigService } from '../../services/config.service';
-import { PageConfig } from '../../models';
+import { EnvVar, PageConfig, envToken, resolveEnvText } from '../../models';
 
 function collectFlatValues(config: PageConfig): Record<string, string> {
   const out: Record<string, string> = {};
@@ -33,15 +33,26 @@ export class EndpointEditor {
   readonly group = input.required<FormGroup>();
   readonly fieldIds = input<string[]>([]);
   readonly isSubmit = input(false);
+  readonly envVars = input<EnvVar[]>([]);
 
   readonly state = signal<'idle' | 'testing' | 'ok' | 'error'>('idle');
   readonly testResult = signal('');
   readonly testMessage = signal('');
+  readonly testUrl = signal('');
   readonly token = signal('');
   readonly showJson = signal(false);
   readonly campoToken = '{{campo}}';
   readonly idToken = '{{id}}';
   readonly headerExample = '{ "Authorization": "Bearer {{token}}", "X-Tenant": "acme" }';
+
+  readonly envNames = computed(() => {
+    const out: string[] = [];
+    for (const v of this.envVars()) {
+      const name = String(v?.name ?? '').trim();
+      if (name && !out.includes(name)) out.push(name);
+    }
+    return out;
+  });
 
   constructor(private configSvc: ConfigService) {}
 
@@ -49,8 +60,33 @@ export class EndpointEditor {
     return `{{${id}}}`;
   }
 
+  envTokenValue(name: string): string {
+    return envToken(name);
+  }
+
+  private resolve(tpl: string, data: Record<string, string>): string {
+    return interpolateLocal(resolveEnvText(tpl, this.envVars(), true), data);
+  }
+
+  resolvedUrl(): string {
+    const data = collectFlatValues(this.configSvc.getValue());
+    return this.resolve(this.group().get('url')?.value || '', data);
+  }
+
   onTokenChange(event: Event) {
     this.token.set((event.target as HTMLSelectElement).value);
+  }
+
+  insertToken(target: HTMLInputElement | HTMLTextAreaElement, token: string) {
+    if (!token) return;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? target.value.length;
+    const value = target.value;
+    target.value = value.slice(0, start) + token + value.slice(end);
+    target.focus();
+    const cursor = start + token.length;
+    target.setSelectionRange(cursor, cursor);
+    target.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   requestPlaceholder(): string {
@@ -82,6 +118,7 @@ export class EndpointEditor {
     const paramValue: string = g.get('paramValue')?.value || '';
     const headersJson: string = g.get('headersJson')?.value || '';
     this.testResult.set('');
+    this.testUrl.set('');
     if (!url) {
       this.state.set('error');
       this.testMessage.set('Indique una URL antes de probar.');
@@ -91,13 +128,13 @@ export class EndpointEditor {
     this.testMessage.set('Ejecutando petición…');
     try {
       const data = collectFlatValues(this.configSvc.getValue());
-      const body = interpolateLocal(tpl, data);
+      const body = this.resolve(tpl, data);
       const headers: Record<string, string> = {};
       if (headersJson && headersJson.trim()) {
         try {
           const parsed = JSON.parse(headersJson);
           for (const k of Object.keys(parsed)) {
-            headers[k] = interpolateLocal(String(parsed[k]), data);
+            headers[k] = this.resolve(String(parsed[k]), data);
           }
         } catch {
           /* headers JSON inválido: se usan los por defecto */
@@ -107,9 +144,9 @@ export class EndpointEditor {
         headers['Accept'] = 'application/json';
         headers['Content-Type'] = 'application/json';
       }
-      let target = interpolateLocal(url, data);
+      let target = this.resolve(url, data);
       const appendParam = () => {
-        const pv = interpolateLocal(paramValue, data);
+        const pv = this.resolve(paramValue, data);
         if (paramName && pv) {
           target = target + (target.includes('?') ? '&' : '?') + encodeURIComponent(paramName) + '=' + encodeURIComponent(pv);
         }
@@ -127,6 +164,7 @@ export class EndpointEditor {
         init.body = body ? body : JSON.stringify(data);
       }
       const res = await fetch(target, init);
+      this.testUrl.set(target);
       const text = await res.text();
       this.testResult.set(text || '(sin contenido)');
       this.state.set(res.ok ? 'ok' : 'error');

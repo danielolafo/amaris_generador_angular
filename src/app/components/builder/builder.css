@@ -429,6 +429,47 @@
   color: var(--pb-primary);
 }
 
+/* ---------- variables de entorno ---------- */
+
+.env-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.env-card {
+  border: 1px solid var(--pb-border);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--pb-bg-soft);
+}
+
+.env-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.env-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.env-chip {
+  padding-bottom: 8px;
+  white-space: nowrap;
+}
+
+.env-resolved code {
+  word-break: break-all;
+}
+
 /* ---------- buttons list ---------- */
 
 .btn-list {

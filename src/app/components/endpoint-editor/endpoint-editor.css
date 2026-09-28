@@ -132,6 +132,12 @@
   word-break: break-all;
 }
 
+.ep-test-url {
+  color: var(--pb-muted);
+  border-bottom: 1px dashed var(--pb-border);
+  padding-bottom: 5px;
+}
+
 .ep-toggle {
   margin-top: 10px;
   background: none;

@@ -4,11 +4,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   BUTTON_ACTIONS,
   BUTTON_STYLES,
+  ENV_NAME_PATTERN,
+  EnvVar,
   FIELD_TYPES,
   FieldType,
   LAYOUT_OPTIONS,
   PageButton,
   Section,
+  defaultEnvVar,
+  resolveEnvText,
   uid,
 } from '../../models';
 import { ConfigService } from '../../services/config.service';
@@ -95,6 +99,9 @@ export class Builder implements OnInit {
     const pasos = new FormArray(
       (config.pasos || []).map((p: any) => this.stepGroup(p)),
     );
+    const envVars = new FormArray(
+      (config.envVars || []).map((v: EnvVar) => this.envVarGroup(v)),
+    );
     return new FormGroup({
       pageTitle: new FormControl(config.pageTitle || ''),
       layout: new FormControl(config.layout || 'twoColumns'),
@@ -126,6 +133,7 @@ export class Builder implements OnInit {
       }),
       autocompleteUrl: new FormControl(config.autocompleteUrl || ''),
       autocompleteMinChars: new FormControl(config.autocompleteMinChars || 2),
+      envVars,
       load: this.endpointGroup(config.load),
       submit: this.endpointGroup(config.submit),
       sections,
@@ -143,6 +151,16 @@ export class Builder implements OnInit {
       paramName: new FormControl(ep?.paramName || ''),
       paramValue: new FormControl(ep?.paramValue || ''),
       headersJson: new FormControl(ep?.headersJson || ''),
+    });
+  }
+
+  envVarGroup(v: any): FormGroup {
+    return new FormGroup({
+      id: new FormControl(v?.id || uid('env')),
+      name: new FormControl(v?.name || '', [Validators.pattern(ENV_NAME_PATTERN)]),
+      value: new FormControl(v?.value || ''),
+      testValue: new FormControl(v?.testValue || ''),
+      useTestValue: new FormControl(!!v?.useTestValue),
     });
   }
 
@@ -270,6 +288,50 @@ export class Builder implements OnInit {
 
   pasoAt(i: number): FormGroup {
     return this.pasosArr().at(i) as FormGroup;
+  }
+
+  // ---------- variables de entorno ----------
+
+  envVarsArr(): FormArray {
+    return this.form.get('envVars') as FormArray;
+  }
+
+  addEnvVar() {
+    const used = new Set(this.envVarNames());
+    let name = 'VARIABLE';
+    let n = 1;
+    while (used.has(name)) {
+      n += 1;
+      name = `VARIABLE_${n}`;
+    }
+    this.envVarsArr().push(this.envVarGroup(defaultEnvVar(name)));
+  }
+
+  removeEnvVar(i: number) {
+    this.envVarsArr().removeAt(i);
+  }
+
+  envVarNames(): string[] {
+    const out: string[] = [];
+    for (const c of this.envVarsArr().controls) {
+      const name = String(c.get('name')?.value || '').trim();
+      if (name && !out.includes(name)) out.push(name);
+    }
+    return out;
+  }
+
+  envVarList(): EnvVar[] {
+    return this.envVarsArr().controls.map((c) => ({
+      id: String(c.get('id')?.value || ''),
+      name: String(c.get('name')?.value || '').trim(),
+      value: String(c.get('value')?.value || ''),
+      testValue: String(c.get('testValue')?.value || ''),
+      useTestValue: !!c.get('useTestValue')?.value,
+    }));
+  }
+
+  resolveWithEnv(tpl: string): string {
+    return resolveEnvText(tpl, this.envVarList(), true);
   }
 
   derivedStepCount(): number {
@@ -667,6 +729,13 @@ export class Builder implements OnInit {
       },
       autocompleteUrl: raw.autocompleteUrl,
       autocompleteMinChars: Number(raw.autocompleteMinChars) || 2,
+      envVars: (raw.envVars || []).map((v: any) => ({
+        id: v.id || uid('env'),
+        name: v.name || '',
+        value: v.value || '',
+        testValue: v.testValue || '',
+        useTestValue: !!v.useTestValue,
+      })),
       load: {
         url: raw.load.url,
         method: raw.load.method,

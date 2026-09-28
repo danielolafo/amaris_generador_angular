@@ -39,6 +39,14 @@ export interface TableColumn {
   filterable: boolean;
 }
 
+export interface EnvVar {
+  id: string;
+  name: string;
+  value: string;
+  testValue: string;
+  useTestValue: boolean;
+}
+
 export interface JsonEndpoint {
   url: string;
   method: HttpMethod;
@@ -136,6 +144,7 @@ export interface PageConfig {
   pasos: FormStep[];
   includeFooter: boolean;
   footerText: string;
+  envVars: EnvVar[];
   load: JsonEndpoint;
   submit: JsonEndpoint;
   autocompleteUrl: string;
@@ -189,6 +198,61 @@ let UID_COUNTER = 0;
 export function uid(prefix = 'id'): string {
   UID_COUNTER += 1;
   return `${prefix}_${Date.now().toString(36)}${UID_COUNTER.toString(36)}`;
+}
+
+export const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+export function sanitizeEnvName(raw: string | null | undefined): string {
+  const cleaned = String(raw ?? '')
+    .trim()
+    .replace(/[^A-Za-z0-9_]/g, '_');
+  if (!cleaned) return '';
+  const safe = /^[0-9]/.test(cleaned) ? `_${cleaned}` : cleaned;
+  return safe.toUpperCase();
+}
+
+export function envToken(name: string): string {
+  return `{{${name}}}`;
+}
+
+export function envValueMap(
+  vars: EnvVar[] | null | undefined,
+  testValues: boolean,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const v of vars || []) {
+    const name = String(v?.name ?? '').trim();
+    if (!name || out[name] !== undefined) continue;
+    const test = String(v?.testValue ?? '');
+    out[name] = testValues && !!v?.useTestValue && test !== '' ? test : String(v?.value ?? '');
+  }
+  return out;
+}
+
+export function applyEnvMap(tpl: string | null | undefined, map: Record<string, string>): string {
+  const text = String(tpl ?? '');
+  if (!text || text.indexOf('{{') < 0) return text;
+  return text.replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g, (match, key: string) =>
+    Object.prototype.hasOwnProperty.call(map, key) ? map[key] : match,
+  );
+}
+
+export function resolveEnvText(
+  tpl: string | null | undefined,
+  vars: EnvVar[] | null | undefined,
+  testValues: boolean,
+): string {
+  return applyEnvMap(tpl, envValueMap(vars, testValues));
+}
+
+export function defaultEnvVar(name = 'VARIABLE'): EnvVar {
+  return {
+    id: uid('env'),
+    name: sanitizeEnvName(name),
+    value: '',
+    testValue: '',
+    useTestValue: false,
+  };
 }
 
 export function defaultEndpoint(): JsonEndpoint {
@@ -391,6 +455,7 @@ export function defaultConfig(): PageConfig {
     pasos: [],
     includeFooter: true,
     footerText: 'Generado con PageBuilder',
+    envVars: [],
     load: {
       url: 'https://example.com/api/registro/1',
       method: 'GET',

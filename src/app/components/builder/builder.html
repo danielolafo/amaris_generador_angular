@@ -352,19 +352,84 @@
     <form [formGroup]="form">
       <section class="panel">
         <h3 class="panel-title">URLs y servicios</h3>
+
+        <div class="p-cell" formArrayName="envVars">
+          <label class="p-label">Variables de entorno</label>
+          <p class="p-note">
+            Reutilice una misma base en todas las URLs escribiéndola como
+            <code>{{ '{{API_URL}}' }}</code>. Cada variable admite un
+            <strong>valor de prueba</strong>: al marcar <em>Probar</em> se usará ese valor en lugar del
+            principal, solo al probar o previsualizar. El código y el HTML exportados siempre llevan
+            el valor principal.
+          </p>
+          <div class="env-list">
+            @for (v of envVarsArr().controls; track $index) {
+              <div class="env-card" [formGroupName]="$index">
+                <div class="env-head">
+                  <div class="env-name-cell">
+                    <label class="p-label">Nombre</label>
+                    <input class="p-input" formControlName="name" placeholder="API_URL" spellcheck="false" />
+                  </div>
+                  <label class="p-chip env-chip" title="Usar el valor de prueba al probar y previsualizar">
+                    <input type="checkbox" formControlName="useTestValue" />
+                    <span>Probar</span>
+                  </label>
+                  <button type="button" class="sec-del" (click)="removeEnvVar($index)" title="Quitar variable">✕</button>
+                </div>
+                <div class="p-cell">
+                  <label class="p-label">Valor</label>
+                  <input class="p-input" formControlName="value" placeholder="https://api.ejemplo.com" spellcheck="false" />
+                </div>
+                <div class="p-cell">
+                  <label class="p-label">Valor de prueba</label>
+                  <input class="p-input" formControlName="testValue" placeholder="https://api-pruebas.ejemplo.com" spellcheck="false" />
+                  <p class="p-note">Se ignora mientras <em>Probar</em> esté desmarcado.</p>
+                </div>
+                @if (resolveWithEnv(v.get('value')?.value || '') !== (v.get('value')?.value || '')) {
+                  <p class="p-note env-resolved">
+                    Se usará: <code>{{ resolveWithEnv(v.get('value')?.value || '') }}</code>
+                  </p>
+                }
+              </div>
+            } @empty {
+              <p class="p-note">
+                Sin variables. Añada una (por ejemplo <code>API_URL</code>) para no repetir la misma URL
+                en cada servicio.
+              </p>
+            }
+          </div>
+          <button type="button" class="p-btn-add" (click)="addEnvVar()">+ Agregar variable</button>
+        </div>
+
         <app-endpoint-editor
           title="URL principal para cargar datos"
           [group]="loadGroup()"
-          [fieldIds]="fieldIds()" />
+          [fieldIds]="fieldIds()"
+          [envVars]="envVarList()" />
         <app-endpoint-editor
           title="URL de envío de datos"
           [group]="submitGroup()"
           [fieldIds]="fieldIds()"
-          [isSubmit]="true" />
+          [isSubmit]="true"
+          [envVars]="envVarList()" />
 
         <div class="p-cell">
           <label class="p-label">URL global de autocompletado (opcional)</label>
-          <input class="p-input" formControlName="autocompleteUrl" placeholder="https://api.ejemplo.com/autocomplete" />
+          <input class="p-input" formControlName="autocompleteUrl" #acUrl placeholder="https://api.ejemplo.com/autocomplete" />
+          @if (envVarNames().length) {
+            <div class="token-row">
+              <span class="p-note">Insertar variable:</span>
+              <select
+                class="p-input token-sel"
+                #acVar
+                (change)="insertToken(acUrl, '{{' + acVar.value + '}}'); acVar.value = ''">
+                <option value="">Seleccione una variable…</option>
+                @for (n of envVarNames(); track n) {
+                  <option [value]="n">{{ '{{' + n + '}}' }}</option>
+                }
+              </select>
+            </div>
+          }
           <p class="p-note">Cada campo con autocompletado puede definir su propia URL; si está vacía se usa esta.</p>
         </div>
         <div class="p-cell">
