@@ -368,7 +368,8 @@ body.pb-dark .pb-tbl-pager-label { color: var(--pb-muted-dark); }
 .pb-tbl-size { width: 82px; padding: 6px 8px; font-size: 13px; }
 .pb-tbl-pages { font-size: 12px; font-weight: 600; min-width: 10px; }
 .pb-table-body td { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
-.pb-step-off { display: none !important; }
+.pb-steppage { display: block; width: 100%; }
+.pb-steppage-off { display: none !important; }
 .pb-steps { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 0; }
 .pb-step {
   display: inline-flex; align-items: center; gap: 6px;
@@ -395,7 +396,7 @@ body.pb-dark .pb-step { background: var(--pb-card-dark); border-color: var(--pb-
       ? ` data-step="${stepIndex}"`
       : '';
     const stepCls = multiStep
-      ? ` pb-step${stepIndex > 0 ? ' pb-step-off' : ''}`
+      ? ` pb-steppage${stepIndex > 0 ? ' pb-steppage-off' : ''}`
       : '';
     if (!section.fields || section.fields.length === 0) {
       return `<section class="pb-card${stepCls}" data-sec="${secId}"${showIf}${stepData}>
